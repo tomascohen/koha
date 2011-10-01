@@ -540,10 +540,12 @@ then
     then
         die "Group $username already exists."
     fi
+    addgroup --quiet koha
     adduser --no-create-home --disabled-login \
         --gecos "Koha instance $username" \
         --home "/var/lib/koha/$name" \
         --quiet "$username"
+    adduser "$username" koha
 
     # Create the site-specific directories.
     koha-create-dirs "$name"
@@ -619,6 +621,8 @@ eof
         echo "$0 --populate-db $name"
         echo "Thanks."
     fi
+
+    s3cmd --config=/etc/koha/s3cfg mb "s3://$name.cpbibliography"
 fi
 
 

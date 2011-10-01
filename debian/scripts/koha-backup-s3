@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# koha-backup-s3: back up a Koha site to Amazon's S3
+# Copyright 2011  C & P Bibliography Services, LLC
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+set -e
+
+
+# Make sure the files we create are not accessible by anyone else.
+umask 0077
+
+
+die() {
+    echo "$@" 1>&2
+    exit 1
+}
+
+
+[ "$#" = 1 ] || die "No instance specified"
+name="$1"
+kohaconfig="/etc/koha/sites/$name/koha-conf.xml"
+date="$(date +%Y-%m-%d)"
+
+#koha-dump "$name"
+
+s3cmd --config=/etc/koha/s3cfg --acl-private put "/var/spool/koha/$name/$name-$date.tar.gz" "/var/spool/koha/$name/$name-$date.sql.gz" "s3://$name.cpbibliography/daily/"
