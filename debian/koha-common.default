@@ -1,3 +1,21 @@
-## General koha-common default options
+## General koha-common default options file
 
 PERL5LIB="/usr/share/koha/lib"
+
+# If you want to use the koha-index-daemon script that is part of the
+# Koha::Contrib::Tamil package instead of the cronjob, set USE_INDEXER_DAEMON
+# to "yes". More information can be found here:
+#     http://wiki.koha-community.org/wiki/PackagesIndexDaemon
+# Note: You should comment the relevant line in /etc/cron.d/koha-common
+#
+# The default value is "no"
+USE_INDEXER_DAEMON="no"
+
+# Indexer daemon script. The default is to use Tamil's
+INDEXER_DAEMON="koha-index-daemon"
+
+# If you are using the koha-index-daemon you can set the frecquency (in sec)
+# of the indexes update.
+#
+# The default value is 30
+INDEXER_TIMEOUT=30
