@@ -14,13 +14,6 @@
             <span class="RT">RT: [% heading | html %]</span>
         [% END %]
     [% ELSE %]
-        <span class="label">
-        [% IF ( type=='seefrom' ) %]
-            used for/see from:
-        [% ELSIF  ( type=='seealso' ) %]
-            see also:
-        [% END %]
-        </span>
         <span class="heading">
         [% IF ( type=='seealso' ) %]
             [% IF ( authid ) %]
@@ -91,9 +84,11 @@
               </div>
             [% END %]
         [% ELSE %]
-            [% IF ( summary.seefrom ) %]
+            [% IF ( summary.seefrom.size > 1 ) %]
+            <div class="seefrom">
+                <span class="seefrom">used for/see from:</span>
                 [% FOREACH seefro IN summary.seefrom %]
-                    <div class="seefrom authref">
+                    <div class="authref">
                     [% PROCESS showreference
                         heading=seefro.heading
                         type=seefro.type
@@ -101,10 +96,13 @@
                     %]
                     </div>
                 [% END %]
+            </div>
             [% END %]
-            [% IF ( summary.seealso ) %]
+            [% IF ( summary.seealso.size > 1 ) %]
+            <div class="seealso">
+                <span class="seealso">see also:</span>
                 [% FOREACH seeals IN summary.seealso %]
-                    <div class="seealso authref">
+                    <div class="authref">
                     [% PROCESS showreference
                         heading=seeals.heading
                         type=seeals.type
@@ -112,6 +110,7 @@
                     %]
                     </div>
                 [% END %]
+            </div>
             [% END %]
         [% END %]
     [% END %]
