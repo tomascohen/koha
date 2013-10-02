@@ -28,7 +28,7 @@
             [% ELSE %]
             <a href="[% searchurl | url %][% heading | html %]">[% heading | html %]</a>
             [% END %]
-        [% ELSIF  ( type=='seealso' ) %]
+        [% ELSE %]
             [% heading | html %]
         [% END %]
         </span>
