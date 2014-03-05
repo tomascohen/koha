@@ -1,4 +1,8 @@
 [% USE Koha %]
+[% IF Koha.Preference( 'CBUCEnabled' ) %]
+    [% USE Covers.CBUC %]
+[% END %]
+
 [% SET TagsShowEnabled = ( ( Koha.Preference( 'TagsEnabled' ) == 1 ) && TagsShowOnList ) %]
 [% SET TagsInputEnabled = ( ( Koha.Preference( 'opacuserlogin' ) == 1 ) && ( Koha.Preference( 'TagsEnabled' ) == 1 ) && TagsInputOnList ) %]
 
@@ -258,6 +262,18 @@
                                                                 <span style="block" title="[% SEARCH_RESULT.biblionumber %]" class="[% SEARCH_RESULT.normalized_isbn %]" id="openlibrary-thumbnail[% loop.count %]"></span>
                                                             [% ELSE %]
                                                                 <span class="no-image">No cover image available</span>
+                                                            [% END %]
+                                                        [% END %]
+
+                                                        [% IF Koha.Preference( 'CBUCEnabled' ) %]
+                                                            [% IF ( SEARCH_RESULT.isbn ) %]
+                                                            <span title="[% SEARCH_RESULT.biblionumber %]" id="cbuc-thumbnail[% loop.count %]">
+                                                                    <img src="[% Covers.CBUC.GetCoverFromISBN( SEARCH_RESULT.isbn ) %]" alt="" class="item-thumbnail" />
+                                                                </span>
+                                                            [% ELSIF ( SEARCH_RESULT.issn ) %]
+                                                            <span title="[% SEARCH_RESULT.biblionumber %]" id="cbuc-thumbnail[% loop.count %]">
+                                                                    <img src="[% Covers.CBUC.GetCoverFromISSN( SEARCH_RESULT.issn ) %]" alt="" class="item-thumbnail" />
+                                                                </span>
                                                             [% END %]
                                                         [% END %]
                                                     </a>

@@ -1,6 +1,9 @@
 [% USE Koha %]
 [% USE KohaDates %]
 [% USE AuthorisedValues %]
+[% IF Koha.Preference( 'CBUCEnabled' ) %]
+    [% USE Covers.CBUC %]
+[% END %]
 [% SET TagsShowEnabled = ( ( Koha.Preference( 'TagsEnabled' ) == 1 ) && TagsShowOnDetail ) %]
 [% SET TagsInputEnabled = ( ( Koha.Preference( 'opacuserlogin' ) == 1 ) && ( Koha.Preference( 'TagsEnabled' ) == 1 ) && TagsInputOnDetail ) %]
 
@@ -41,6 +44,18 @@
                 <div id="catalogue_detail_biblio" class="maincontent">
 
                     <div id="bookcover">
+                    [% IF Koha.Preference( 'CBUCEnabled' ) %]
+                        [% IF ( MARCISBNS ) %]
+                        <span title="[% biblionumber %]" id="cbuc-thumbnail">
+                                <img src="[% Covers.CBUC.GetCoverFromISBN( MARCISBNS ) %]" alt="" class="item-thumbnail" />
+                            </span>
+                        [% ELSIF ( MARCISSNS ) %]
+                        <span title="[% biblionumber %]" id="cbuc-thumbnail">
+                                <img src="[% Covers.CBUC.GetCoverFromISSN( MARCISSNS ) %]" alt="" class="item-thumbnail" />
+                            </span>
+                        [% END %]
+                    [% END %]
+
                     [% IF ( OPACLocalCoverImages ) %]
                         <div title="[% biblionumber |url %]" class="[% biblionumber %]" id="local-thumbnail-preview"></div>
                     [% END %]
