@@ -16,8 +16,8 @@
 # Suite 330, Boston, MA  02111-1307 USA
 
 
-use strict;
-use warnings;
+use Modern::Perl;
+
 use CGI;
 use C4::Koha;
 use C4::Biblio;
@@ -25,19 +25,22 @@ use C4::Items;
 use C4::Auth;
 use C4::Output;
 use C4::Csv;
+use Koha::Database;
+use Koha::Biblio;
+use Data::Printer;
 
 my $query = new CGI;
 
 my ( $template, $borrowernumber, $cookie ) = get_template_and_user (
     {
-        template_name   => "basket/basket.tmpl",
+        template_name   => "basket/basket.tt",
         query           => $query,
         type            => "intranet",
         flagsrequired   => { borrow => 1 },
     }
 );
 
-my $bib_list     = $query->param('bib_list');
+my $bib_list     = $query->param('bib_list') // '';
 my $print_basket = $query->param('print');
 my $verbose      = $query->param('verbose');
 
@@ -46,6 +49,7 @@ if ($print_basket) { $template->param( print_basket => 1 ); }
 
 my @bibs = split( /\//, $bib_list );
 my @results;
+my @invalid_biblionumbers;
 
 my $num = 1;
 my $marcflavour = C4::Context->preference('marcflavour');
@@ -56,11 +60,20 @@ if (C4::Context->preference('TagsEnabled')) {
 	}
 }
 
+my $schema = Koha::Database->new()->schema();
 
 foreach my $biblionumber ( @bibs ) {
-    $template->param( biblionumber => $biblionumber );
 
-    my $dat              = &GetBiblioData($biblionumber);
+    my $is_biblionumber = $schema->resultset('Biblio')->find( $biblionumber );
+    if ( ! $is_biblionumber ) {
+        push( @invalid_biblionumbers, $biblionumber );
+        warn p(Koha::Biblio::GetBiblio( $biblionumber, 1 ));
+        next;
+    }
+
+    warn p( Koha::Biblio::GetBiblio( $biblionumber ) );
+
+    my $dat              = Koha::Biblio::GetBiblioData($biblionumber);
     my $record           = &GetMarcBiblio($biblionumber);
     my $marcnotesarray   = GetMarcNotes( $record, $marcflavour );
     my $marcauthorsarray = GetMarcAuthors( $record, $marcflavour );
@@ -120,9 +133,10 @@ my $resultsarray = \@results;
 # my $itemsarray=\@items;
 
 $template->param(
-    BIBLIO_RESULTS => $resultsarray,
-    csv_profiles => GetCsvProfilesLoop('marc'),
-    bib_list => $bib_list,
+    BIBLIO_RESULTS  => $resultsarray,
+    invalid_biblios => @invalid_biblionumbers,
+    csv_profiles    => GetCsvProfilesLoop('marc'),
+    bib_list        => $bib_list,
 );
 
 output_html_with_http_headers $query, $cookie, $template->output;
