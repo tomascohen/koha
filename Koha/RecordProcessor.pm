@@ -94,7 +94,7 @@ sub new {
     my $param = shift;
 
 
-    my $schema = $param->{schema} || 'MARC';
+    my $schema  = $param->{schema} || 'MARC';
     my $options = $param->{options} || '';
     my @filters = ( );
 
@@ -150,7 +150,7 @@ sub process {
 
     foreach my $filterobj (@{$self->filters}) {
         next unless $filterobj;
-        $newrecord = $filterobj->filter($newrecord);
+        $newrecord = $filterobj->filter($newrecord, $self->options() );
     }
 
     return $newrecord;
