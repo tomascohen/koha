@@ -5,6 +5,9 @@
   "borrowernumberQueryParam": {
     "$ref": "parameters/patron.json#/borrowernumberQueryParam"
   },
+  "checkoutIdPathParam": {
+    "$ref": "parameters/checkout.json#/checkoutIdPathParam"
+  },
   "cityidPathParam": {
     "$ref": "parameters/city.json#/cityidPathParam"
   },
