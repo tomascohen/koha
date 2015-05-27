@@ -32,6 +32,7 @@ use C4::Koha; # XXX subfield_is_koha_internal_p
 use C4::Branch; # XXX subfield_is_koha_internal_p
 use C4::ClassSource;
 use C4::Dates;
+use C4::IndicesItems;
 use List::MoreUtils qw/any/;
 use C4::Search;
 use Storable qw(thaw freeze);
@@ -313,6 +314,8 @@ my $error        = $input->param('error');
 my $biblionumber = $input->param('biblionumber');
 my $itemnumber   = $input->param('itemnumber');
 my $op           = $input->param('op');
+my $moreInfo     = $input->param('add_more_info_submit') // 0; # BREAL
+my $BiblioAddsAuthorities = C4::Context->preference("BiblioAddsAuthorities");
 my $hostitemnumber = $input->param('hostitemnumber');
 my $marcflavour  = C4::Context->preference("marcflavour");
 my $searchid     = $input->param('searchid');
@@ -346,6 +349,10 @@ my ($template, $loggedinuser, $cookie)
 
 
 my $today_iso = C4::Dates->today('iso');
+# BREAL: Campos de indices
+my $objIndicesItems = new C4::IndicesItems();
+$objIndicesItems->createIndexFieldsFromStructure($frameworkcode);
+#
 my $tagslib = &GetMarcStructure(1,$frameworkcode);
 my $record = GetMarcBiblio($biblionumber);
 my $oldrecord = TransformMarcToKoha($dbh,$record);
@@ -376,6 +383,7 @@ if ($op eq "additem") {
     my @tags      = $input->param('tag');
     my @subfields = $input->param('subfield');
     my @values    = $input->param('field_value');
+    $objIndicesItems->cleanArraysFormHtml2Xml(undef, \@tags,\@subfields,\@values);
     # build indicator hash.
     my @ind_tag   = $input->param('ind_tag');
     my @indicator = $input->param('indicator');
@@ -404,7 +412,7 @@ if ($op eq "additem") {
     my $addedolditem = TransformMarcToKoha( $dbh, $record );
 
     # If we have to add or add & duplicate, we add the item
-    if ( $add_submit || $add_duplicate_submit ) {
+    if ( $add_submit || $add_duplicate_submit || $moreInfo) {
 
         # check for item barcode # being unique
         my $exist_itemnumber = get_item_from_barcode( $addedolditem->{'barcode'} );
@@ -414,7 +422,14 @@ if ($op eq "additem") {
         unless ($exist_itemnumber) {
             my ( $oldbiblionumber, $oldbibnum, $oldbibitemnum ) = AddItemFromMarc( $record, $biblionumber );
             set_item_default_location($oldbibitemnum);
-
+            if ($oldbibitemnum) {
+                $objIndicesItems->addIndicesItemsFromHtml($biblionumber, $oldbibitemnum, $input, undef, $BiblioAddsAuthorities);
+                $objIndicesItems->processIndicesOnRecord(GetMarcBiblio($biblionumber, 1), 1, 'update');
+                if ($moreInfo) {
+                    print $input->redirect(-uri=>'additem.pl?op=edititem&biblionumber=' . $biblionumber . '&itemnumber=' . $oldbibitemnum . '#edititem');
+                    exit;
+                }
+            }
             # Pushing the last created item cookie back
             if ($prefillitem && defined $record) {
                 my $itemcookie = $input->cookie(
@@ -497,6 +512,10 @@ if ($op eq "additem") {
         if (!$exist_itemnumber) {
             my ($oldbiblionumber,$oldbibnum,$oldbibitemnum) = AddItemFromMarc($record,$biblionumber);
             set_item_default_location($oldbibitemnum);
+            if ($oldbibitemnum) {
+                $objIndicesItems->addIndicesItemsFromHtml($oldbiblionumber, $oldbibitemnum, $input, undef, $BiblioAddsAuthorities, 1);
+                $objIndicesItems->processIndicesOnRecord(GetMarcBiblio($biblionumber, 1), 1, 'update');
+            }
 
             # We count the item only if it was really added
             # That way, all items are added, even if there was some already existing barcodes
@@ -528,11 +547,12 @@ if ($op eq "additem") {
 # retrieve item if exist => then, it's a modif
     $itemrecord = C4::Items::GetMarcItem($biblionumber,$itemnumber);
     $nextop = "saveitem";
+    $moreInfo = 1;
 #-------------------------------------------------------------------------------
 } elsif ($op eq "delitem") {
 #-------------------------------------------------------------------------------
     # check that there is no issue on this item before deletion.
-    $error = &DelItemCheck($dbh,$biblionumber,$itemnumber);
+    $error = &DelItemCheck($dbh,$biblionumber,$itemnumber) if ($objIndicesItems->delIndicesItem($biblionumber, $itemnumber));
     if($error == 1){
         print $input->redirect("additem.pl?biblionumber=$biblionumber&frameworkcode=$frameworkcode&searchid=$searchid");
     }else{
@@ -549,7 +569,8 @@ if ($op eq "additem") {
         my $items = &GetItemsByBiblioitemnumber( $biblioitem->{biblioitemnumber} );
 
         foreach my $item (@$items) {
-            $error =&DelItemCheck( $dbh, $biblionumber, $item->{itemnumber} );
+            $error = 0;
+            $error =&DelItemCheck( $dbh, $biblionumber, $item->{itemnumber} ) if ($objIndicesItems->delIndicesItem($biblionumber, $item->{itemnumber}));
             $itemfail =$item;
         if($error == 1){
             next
@@ -584,6 +605,8 @@ if ($op eq "additem") {
     my @tags      = $input->param('tag');
     my @subfields = $input->param('subfield');
     my @values    = $input->param('field_value');
+    #print "Content-type: text/html\n\n";
+    $objIndicesItems->cleanArraysFormHtml2Xml($itemnumber, \@tags,\@subfields,\@values);
     # build indicator hash.
     my @ind_tag   = $input->param('ind_tag');
     my @indicator = $input->param('indicator');
@@ -598,6 +621,8 @@ if ($op eq "additem") {
     if ($exist_itemnumber && $exist_itemnumber != $itemnumber) {
         push @errors,"barcode_not_unique";
     } else {
+        $objIndicesItems->addIndicesItemsFromHtml($biblionumber, $itemnumber, $input, undef, $BiblioAddsAuthorities);
+        $objIndicesItems->processIndicesOnRecord(GetMarcBiblio($biblionumber, 1), 1, 'update');
         ModItemFromMarc($itemtosave,$biblionumber,$itemnumber);
         $itemnumber="";
     }
@@ -627,6 +652,7 @@ if ($op eq "additem") {
 	my $modbibresult = ModBiblio($record, $biblionumber,'');
 }
 
+$moreInfo = 0 if ($nextop eq 'additem');
 #
 #-------------------------------------------------------------------------------
 # build screen with existing items. and "new" one
@@ -732,6 +758,7 @@ my ($holdingbrtagf,$holdingbrtagsubf) = &GetMarcFromKohaField("items.holdingbran
 my @item_value_loop;
 my @header_value_loop;
 for my $row ( @big_array ) {
+    next unless ($row->{itemnumber}); #BREAL
     my %row_data;
     my @item_fields = map +{ field => $_ || '' }, @$row{ sort keys(%witness) };
     $row_data{item_value} = [ @item_fields ];
@@ -763,11 +790,33 @@ my $onlymine =
 my $branch = $input->param('branch') || C4::Context->userenv->{branch};
 my $branches = GetBranchesLoop($branch,$onlymine);  # build once ahead of time, instead of multiple times later.
 
-# We generate form, from actuel record
+# BREAL: Campos de indices
+my %indexFields = %{$objIndicesItems->getIndexFields()};
+# Recogemos los indices del item
+my @loop_data_index = ();
+my %loop_data_index_aux = ();
+my $j = 0;
+##
+
+#We generate form, from actual record
 @fields = ();
 if($itemrecord){
     foreach my $field ($itemrecord->fields()){
         my $tag = $field->{_tag};
+        # BREAL: Campos de indices
+        my $index_tag;
+        my $field_data;
+        if (exists($indexFields{$tag}) && $moreInfo) {
+            $field_data = {'tag' => $tag, 'taglib' => $tagslib->{$tag}->{'lib'}, 'tagrepeatable' => $tagslib->{$tag}->{'repeatable'}, 'subfields' => []};
+            unless (exists($loop_data_index_aux{$tag})) {
+                $loop_data_index_aux{$tag} = [];
+                $index_tag = int(rand(1000000));
+            } elsif(!$index_tag) {
+                $index_tag = int(rand(1000000));
+            }
+            $field_data->{'tagindex'} = $index_tag if (!$field_data->{'tagindex'} && $index_tag);
+        }
+        ##
         foreach my $subfield ( $field->subfields() ){
 
             my $subfieldtag = $subfield->[0];
@@ -775,6 +824,24 @@ if($itemrecord){
             my $subfieldlib = $tagslib->{$tag}->{$subfieldtag};
 
             next if subfield_is_koha_internal_p($subfieldtag);
+            # BREAL: Campos de indices de itemrecord
+            if (exists($indexFields{$tag}) && exists($indexFields{$tag}->{$subfieldtag})) {
+                if ($moreInfo) {
+                    $value = $itemnumber if ($subfieldtag eq '0' && (!defined($value) || $value ne $itemnumber)); # BREAL: el subcampo 0 es el itemnumber
+                    my $subfield_data = generate_subfield_form($tag, $subfieldtag, $value, $tagslib, $subfieldlib, $branches, $today_iso, $biblionumber, $temp, $loop_data_index_aux{$tag}, $j);
+                    $subfield_data->{'marc_value'} =~ s/id="([^"]+?)"(.+)name="[^"]+?"/id="$1"$2name="$1"/;
+                    if ($subfieldtag eq '0' || $subfieldtag eq '9' || ($subfieldtag eq 'a' && (!$BiblioAddsAuthorities && $subfield_data->{'marc_value'} =~ /onclick="Dopop/))) { # BREAL: el subcampo 0 no es modificable
+                        $subfield_data->{'marc_value'} =~ s/\/>/readonly="readonly" \/>/;
+                        $subfield_data->{'marc_value'} =~ s/class="input_marceditor"/class="input_marceditor readonly"/;
+                    } elsif ($subfieldtag eq 'a' && exists($indexFields{$tag}->{'9'})) {
+                        $subfield_data->{'marc_value'} =~ s/\/>/onkeyup="clearValue9(this, '$tag')" \/>/;
+                    }
+                    $j++;
+                    push @{$field_data->{'subfields'}}, $subfield_data;
+                }
+                next;
+            }
+            ##
             next if ($tagslib->{$tag}->{$subfieldtag}->{'tab'} ne "10");
 
             my $subfield_data = generate_subfield_form($tag, $subfieldtag, $value, $tagslib, $subfieldlib, $branches, $today_iso, $biblionumber, $temp, \@loop_data, $i);        
@@ -782,10 +849,69 @@ if($itemrecord){
             push @fields, "$tag$subfieldtag";
             push (@loop_data, $subfield_data);
             $i++;
+        }
+        push (@{$loop_data_index_aux{$tag}}, $field_data) if ($field_data);
+    }
+}
+    # and now we add fields that are empty
+# BREAL: Cogemos los campos de los indices del itemnumber que están fuera del 952
+if ($itemnumber && $op eq "edititem" && $record && $moreInfo) {
+    my $tag;
+    for $tag (keys %indexFields) {
+        my @fieldsTag = $record->field($tag);
+        if (@fieldsTag) {
+            for my $field (@fieldsTag) {
+                next if (!defined($field->subfield('0')) || $field->subfield('0') != $itemnumber);
+                my $index_tag = int(rand(1000000));
+                unless (exists($loop_data_index_aux{$tag})) {
+                    $loop_data_index_aux{$tag} = [];
+                }
+                my $field_data = {'tag' => $tag, 'taglib' => $tagslib->{$tag}->{'lib'}, 'tagrepeatable' => $tagslib->{$tag}->{'repeatable'}, 'subfields' => []};
+                $field_data->{'tagindex'} = $index_tag;
+                for my $subfield ($field->subfields()) {
+                    my $subfieldtag = $subfield->[0];
+                    if (exists($indexFields{$tag}->{$subfieldtag})) {
+                        my $value = $subfield->[1];
+                        my $subfieldlib = $tagslib->{$tag}->{$subfieldtag};
+                        $value = $itemnumber if ($subfieldtag eq '0' && (!defined($value) || $value ne $itemnumber)); # BREAL: el subcampo 0 es el itemnumber
+                        my $subfield_data = generate_subfield_form($tag, $subfieldtag, $value, $tagslib, $subfieldlib, $branches, $today_iso, $biblionumber, $temp, $loop_data_index_aux{$tag}, $j);
+                        $subfield_data->{'marc_value'} =~ s/id="([^"]+?)"(.+)name="[^"]+?"/id="$1"$2name="$1"/;
+                        if ($subfieldtag eq '0' || $subfieldtag eq '9' || ($subfieldtag eq 'a' && (!$BiblioAddsAuthorities && $subfield_data->{'marc_value'} =~ /onclick="Dopop/))) { # BREAL: el subcampo 0 no es modificable
+                            $subfield_data->{'marc_value'} =~ s/\/>/readonly="readonly" \/>/;
+                            $subfield_data->{'marc_value'} =~ s/class="input_marceditor"/class="input_marceditor readonly"/;
+                        } elsif ($subfieldtag eq 'a' && exists($indexFields{$tag}->{'9'})) {
+                            $subfield_data->{'marc_value'} =~ s/\/>/onkeyup="clearValue9(this, '$tag')" \/>/;
+                        }
+                        $j++;
+                        push @{$field_data->{'subfields'}}, $subfield_data;
                     }
-
+                }
+                if ($field_data) {
+                    my $lostSubfields = $objIndicesItems->checkLostSubfieldsIndicesField($field_data);
+                    if (@$lostSubfields) {
+                        my $subfieldtag;
+                        for $subfieldtag (@$lostSubfields) {
+                            my $value = '';
+                            my $subfieldlib = $tagslib->{$tag}->{$subfieldtag};
+                            $value = $itemnumber if ($subfieldtag eq '0' && (!defined($value) || $value ne $itemnumber)); # BREAL: el subcampo 0 es el itemnumber
+                            my $subfield_data = generate_subfield_form($tag, $subfieldtag, $value, $tagslib, $subfieldlib, $branches, $today_iso, $biblionumber, $temp, $loop_data_index_aux{$tag}, $j);
+                            $subfield_data->{'marc_value'} =~ s/id="([^"]+?)"(.+)name="[^"]+?"/id="$1"$2name="$1"/;
+                            if ($subfieldtag eq '0' || $subfieldtag eq '9' || ($subfieldtag eq 'a' && (!$BiblioAddsAuthorities && $subfield_data->{'marc_value'} =~ /onclick="Dopop/))) { # BREAL: el subcampo 0 no es modificable
+                                $subfield_data->{'marc_value'} =~ s/\/>/readonly="readonly" \/>/;
+                                $subfield_data->{'marc_value'} =~ s/class="input_marceditor"/class="input_marceditor readonly"/;
+                            } elsif ($subfieldtag eq 'a' && exists($indexFields{$tag}->{'9'})) {
+                                $subfield_data->{'marc_value'} =~ s/\/>/onkeyup="clearValue9(this, '$tag')" \/>/;
+                            }
+                            $j++;
+                            push @{$field_data->{'subfields'}}, $subfield_data;
+                        }
+                    }
+                    push (@{$loop_data_index_aux{$tag}}, $field_data);
                 }
             }
+        }
+    }
+}
     # and now we add fields that are empty
 
 # Using last created item if it exists
@@ -794,8 +920,49 @@ $itemrecord = $cookieitemrecord if ($prefillitem and not $justaddeditem and $op 
 
 # We generate form, and fill with values if defined
 foreach my $tag ( keys %{$tagslib}){
+    # BREAL: Campos de indices que no tenían datos
+    my $index_tag;
+    my $field_data;
+    if (exists($indexFields{$tag})) {
+        next if (exists($loop_data_index_aux{$tag}) && @{$loop_data_index_aux{$tag}}); # BREAL: no queremos indices con datos
+        if ($moreInfo) {
+            $field_data = {'tag' => $tag, 'taglib' => $tagslib->{$tag}->{'lib'}, 'tagrepeatable' => $tagslib->{$tag}->{'repeatable'}, 'subfields' => []};
+            unless (exists($loop_data_index_aux{$tag})) {
+                $loop_data_index_aux{$tag} = [];
+            }
+            $index_tag = int(rand(1000000));
+            $field_data->{'tagindex'} = $index_tag;
+        }
+    }
+    ##
     foreach my $subtag (keys %{$tagslib->{$tag}}){
         next if subfield_is_koha_internal_p($subtag);
+        # BREAL: Campos de indices que no tenían datos
+        if (exists($indexFields{$tag})) {
+            if (exists($indexFields{$tag}->{$subtag})) {
+                if ($moreInfo) {
+                    my @values = (undef);
+                    @values = $itemrecord->field($tag)->subfield($subtag) if ($itemrecord && defined($itemrecord->field($tag)) && defined($itemrecord->field($tag)->subfield($subtag)));
+                    for my $value (@values){
+                        $value = $itemnumber if ($subtag eq '0' && (!defined($value) || $value ne $itemnumber)); # BREAL: el subcampo 0 es el itemnumber
+                        my $subfield_data = generate_subfield_form($tag, $subtag, $value, $tagslib, $tagslib->{$tag}->{$subtag}, $branches, $today_iso, $biblionumber, $temp, $loop_data_index_aux{$tag}, $j);
+                        $subfield_data->{'marc_value'} =~ s/id="([^"]+?)"(.+)name="[^"]+?"/id="$1"$2name="$1"/;
+                        if ($subtag eq '0' || $subtag eq '9' || ($subtag eq 'a' && (!$BiblioAddsAuthorities && $subfield_data->{'marc_value'} =~ /onclick="Dopop/))) { # BREAL: el subcampo 0 no es modificable
+                            $subfield_data->{'marc_value'} =~ s/\/>/readonly="readonly" \/>/;
+                            $subfield_data->{'marc_value'} =~ s/class="input_marceditor"/class="input_marceditor readonly"/;
+                        } elsif ($subtag eq 'a' && exists($indexFields{$tag}->{'9'})) {
+                            $subfield_data->{'marc_value'} =~ s/\/>/onkeyup="clearValue9(this, '$tag')" \/>/;
+                        }
+                        $j++;
+                        push @{$field_data->{'subfields'}}, $subfield_data;
+                    }
+                }
+                next;
+            } else {
+                next;
+            }
+        }
+        ##
         next if ($tagslib->{$tag}->{$subtag}->{'tab'} ne "10");
         next if any { /^$tag$subtag$/ }  @fields;
 
@@ -806,9 +973,34 @@ foreach my $tag ( keys %{$tagslib}){
             push (@loop_data, $subfield_data);
             $i++;
         } 
-  }
+    }
+    push (@{$loop_data_index_aux{$tag}}, $field_data) if ($field_data);
 }
 @loop_data = sort {$a->{subfield} cmp $b->{subfield} } @loop_data;
+
+# BREAL: Limpiar y Ordenar los campos de los indices
+for (keys %loop_data_index_aux) {
+    delete $loop_data_index_aux{$_} unless (@{$loop_data_index_aux{$_}});
+    my $subfields = 0;
+    FIELD:
+    for my $field (@{$loop_data_index_aux{$_}}) {
+        if (@{$field->{subfields}}) {
+            for my $subfield (@{$field->{subfields}}) {
+                unless ($subfield->{visibility}) {
+                    $subfields = 1;
+                    last FIELD;
+                }
+            }
+        }
+    }
+    delete $loop_data_index_aux{$_} unless ($subfields);
+}
+my @orden_indices = ('901', '911', '902', '912', '903', '921', '931');
+#@loop_data_index = map {$_->[1]} sort { $a->[0] cmp $b->[0] } map { [ $_, $loop_data_index_aux{$_} ] } keys %loop_data_index_aux;
+for (@orden_indices) {
+    push @loop_data_index, $loop_data_index_aux{$_} if (exists($loop_data_index_aux{$_}));
+}
+##
 
 # what's the next op ? it's what we are not in : an add if we're editing, otherwise, and edit.
 $template->param( title => $record->title() ) if ($record ne "-1");
@@ -819,6 +1011,7 @@ $template->param(
     item_loop        => \@item_value_loop,
     item_header_loop => \@header_value_loop,
     item             => \@loop_data,
+    item_loop_index => \@loop_data_index,
     itemnumber       => $itemnumber,
     barcode          => GetBarcodeFromItemnumber($itemnumber),
     itemtagfield     => $itemtagfield,
@@ -827,6 +1020,7 @@ $template->param(
     opisadd => ($nextop eq "saveitem") ? 0 : 1,
     popup => $input->param('popup') ? 1: 0,
     C4::Search::enabled_staff_search_views,
+    moreInfo => $moreInfo, # BREAL
 );
 $template->{'VARS'}->{'searchid'} = $searchid;
 
