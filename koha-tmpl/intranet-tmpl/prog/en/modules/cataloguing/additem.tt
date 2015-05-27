@@ -13,6 +13,7 @@
 //<![CDATA[
     var browser = KOHA.browser('[% searchid %]', parseInt('[% biblionumber %]', 10));
     browser.show();
+    var fields_in_use = {};
 
 $(document).ready(function(){
     [% IF (popup) %]
@@ -42,6 +43,14 @@ $(document).ready(function(){
         "bAutoWidth": false
     } ) );
 
+        $('.ol_tag').each(function() {
+            var field_id = this.getAttribute('id').substring(0, 7);
+            if (field_id in fields_in_use) {
+                fields_in_use[field_id]++;
+            } else {
+                fields_in_use[field_id] = 1;
+            }
+        });
 });
 function active(numlayer)
 {
@@ -66,6 +75,7 @@ function Check(f) {
         alertString2 += "\n------------------------------------------------------------------------------------\n";
         alertString2 += "\n- " + _("%s mandatory fields empty (highlighted)").format(total_errors);
         alert(alertString2);
+        f.more_info.value = '0';
         return false;
     }
     return true;
@@ -91,6 +101,243 @@ function confirm_deletion(biblionumber,itemnumber) {
 	} else {
 	$("#row"+itemnumber).attr("class","");
     }
+}
+
+function clearValue9(field, tag)
+{
+    var obj = $("#" + field.id);
+    var ol = obj.closest("ol[id^='tag_" + tag + "_']");
+    var $inputs = ol.find("input:text[id^='tag_" + tag + "_subfield_9_']");
+    if ($inputs.length > 0) {
+        $inputs.each(function() {
+            $(this).val("");
+        });
+    }
+}//clearValue9
+
+/**
+ * To clone a field or a subfield by clicking on '+' button
+ */
+function CloneField(index)
+{
+    var original = document.getElementById(index); //original <ol>
+    fields_in_use[index.substr(0, 7)]++;
+    var clone = original.cloneNode(true);
+    var new_key = CreateKey();
+    var new_id  = original.getAttribute('id') + new_key;
+
+    clone.setAttribute('id',new_id); // setting a new id for the parent ol
+
+    var divs = clone.getElementsByTagName('div');
+
+    // settings all subfields
+    for (var i=0,divslen = divs.length ; i<divslen ; i++) {      // foreach div
+        if (divs[i].getAttribute("id").match(/^tagol/)) {
+            divs[i].setAttribute('id',divs[i].getAttribute('id')+new_key);
+
+            var inputs   = divs[i].getElementsByTagName('input');
+            inputs[0].setAttribute('name',inputs[0].getAttribute('name')+new_key);
+            // setting its '+' and '-' buttons
+            try {
+                var anchors = divs[i].getElementsByTagName('a');
+                for (var j = 0; j < anchors.length; j++) {
+                    if (anchors[j].getAttribute('class') == 'buttonPlus') {
+                        anchors[j].setAttribute('onclick',"CloneField('" + new_id + "')");
+                    } else if (anchors[j].getAttribute('class') == 'buttonMinus') {
+                        anchors[j].setAttribute('onclick',"UnCloneField('" + new_id + "')");
+                    } else if (anchors[j].getAttribute('class') == 'expandfield') {
+                        anchors[j].setAttribute('onclick',"ExpandField('" + new_id + "')");
+                    }
+                }
+            }
+            catch(e){
+                // do nothig CloneButtonPlus doesn't exist.
+            }
+        } else if (divs[i].getAttribute("id").match(/^subfield/)) {  // if it s a subfield
+
+            // set the attribute for the new 'div' subfields
+            divs[i].setAttribute('id',divs[i].getAttribute('id')+new_key);
+
+            var inputs   = divs[i].getElementsByTagName('input');
+            var id_input = "";
+
+            for ( j = 0 ; j < inputs.length ; j++ ) {
+                if (inputs[j].getAttribute("id") && inputs[j].getAttribute("id").match(/^tag_/) && !inputs[j].getAttribute("id").match(/tag_[0-9]+_subfield_0/) ){
+                    inputs[j].value = "";
+                }
+            }
+            inputs[0].setAttribute('id',inputs[0].getAttribute('id')+new_key);
+            inputs[0].setAttribute('name',inputs[0].getAttribute('name')+new_key);
+            try {
+                var anchors = divs[i].getElementsByTagName('span');
+                for (var j = 0; j < anchors.length; j++) {
+                    if (anchors[j].getAttribute('class') == 'buttonPlus'){
+                        anchors[j].setAttribute('onclick',"CloneSubfield('" + divs[i].getAttribute('id') + "')");
+                    } else if (anchors[j].getAttribute('class') == 'buttonMinus') {
+                        anchors[j].setAttribute('onclick',"UnCloneField('" + divs[i].getAttribute('id') + "')");
+                    }
+                }
+            }
+            catch(e){
+                // do nothig if ButtonPlus & CloneButtonPlus don t exist.
+            }
+
+            // button ...
+            var spans=0;
+            try {
+                spans = divs[i].getElementsByTagName('a');
+            } catch(e) {
+                // no spans
+            }
+            if (spans) {
+                var buttonDot;
+                buttonDot = spans[0];
+                if (buttonDot) {
+                    // 2 possibilities :
+                    try {
+                        var buttonDotOnClick = buttonDot.getAttribute('onclick');
+                        if (buttonDotOnClick.match('Clictag')) {   // -1- It s a plugin
+                            var re = /\('.*'\)/i;
+                            buttonDotOnClick = buttonDotOnClick.replace(re,"('"+inputs[0].getAttribute('id')+"')");
+                            if (buttonDotOnClick) {
+                                buttonDot.setAttribute('onclick',buttonDotOnClick);
+                            }
+                        } else {
+                            if (buttonDotOnClick.match('Dopop')) {  // -2- It's a auth value
+                                var re1 = /&index=.*',/;
+                                var re2 = /,.*\)/;
+
+                                buttonDotOnClick = buttonDotOnClick.replace(re1,"&index="+inputs[0].getAttribute('id')+"',");
+                                buttonDotOnClick = buttonDotOnClick.replace(re2,",'"+inputs[0].getAttribute('id')+"')");
+
+                                if (buttonDotOnClick) {
+                                    buttonDot.setAttribute('onclick',buttonDotOnClick);
+                                }
+                            }
+                        }
+                        try {
+                            // do not copy the script section.
+                            var script = spans[0].getElementsByTagName('script')[0];
+                            spans[0].removeChild(script);
+                        } catch(e) {
+                            // do nothing if there is no script
+                        }
+                    }catch(e){}
+                }
+            }
+        }
+    }
+
+    // insert this line on the page
+    original.parentNode.insertBefore(clone,original.nextSibling);
+}
+
+ /**
+ * This function removes or clears unwanted subfields
+ */
+function UnCloneField(index)
+{
+    var original = document.getElementById(index);
+    var field_id;
+    if (index.match("tag")) {
+        field_id = index.substr(0, 7);
+    } else {
+        field_id = index.substr(0, 12);
+    }
+    if (1 == fields_in_use[field_id]) {
+        // clear inputs, but don't delete
+        $(":input.input_marceditor", original).each(function(){
+            // thanks to http://www.learningjquery.com/2007/08/clearing-form-data for
+            // hint about clearing selects correctly
+            var type = this.type;
+            var tag = this.tagName.toLowerCase();
+            if ((type == 'text' && !$(this).attr("id").match(/tag_[0-9]+_subfield_0/)) || type == 'password' || tag == 'textarea') {
+                this.value = "";
+            } else if (type == 'checkbox' || type == 'radio') {
+                this.checked = false;
+            } else if (tag == 'select') {
+                this.selectedIndex = -1;
+            }
+        });
+    } else {
+        original.parentNode.removeChild(original);
+        fields_in_use[field_id]--;
+    }
+}
+
+
+
+function CloneSubfield(index)
+{
+    var original = document.getElementById(index); //original <div>
+    var clone = original.cloneNode(true);
+    var new_key = CreateKey();
+    var old_id =  original.getAttribute('id');
+    old_id=old_id.substr(12);
+    var new_id  = old_id+new_key;
+
+    // set the attribute for the new 'div' subfields
+    var inputs     = clone.getElementsByTagName('input');
+    var selects    = clone.getElementsByTagName('select');
+    var textareas  = clone.getElementsByTagName('textarea');
+
+    // input
+    var id_input = "";
+    for(var i=0,len=inputs.length; i<len ; i++ ){
+        id_input = inputs[i].getAttribute('id')+new_key;
+        inputs[i].setAttribute('id',id_input);
+        inputs[i].setAttribute('name',inputs[i].getAttribute('name'));
+    }
+
+    // select
+    for(var i=0,len=selects.length; i<len ; i++ ){
+        id_input = selects[i].getAttribute('id')+new_key;
+        selects[i].setAttribute('id',selects[i].getAttribute('id')+new_key);
+        selects[i].setAttribute('name',selects[i].getAttribute('name'));
+    }
+
+    // textarea
+    for(var i=0,len=textareas.length; i<len ; i++ ){
+        id_input = textareas[i].getAttribute('id')+new_key;
+        textareas[i].setAttribute('id',textareas[i].getAttribute('id')+new_key);
+        textareas[i].setAttribute('name',textareas[i].getAttribute('name'));
+    }
+
+    [% UNLESS ( advancedMARCEditor ) %]
+    // when cloning a subfield, reset its label too.
+    var label = clone.getElementsByTagName('label')[0];
+    label.setAttribute('for',id_input);
+    [% END %]
+
+    // setting a new if for the parent div
+    clone.setAttribute('id',new_id);
+
+    var CloneButtonPlus;
+    try {
+      var spans = clone.getElementsByTagName('span');
+      if(spans.length){
+          for(var i = 0 ,lenspans = spans.length ; i < lenspans ; i++){
+            if(spans[i].getAttribute('class') == 'buttonPlus'){
+                    CloneButtonPlus = spans[i];
+                    CloneButtonPlus.setAttribute('onclick',"CloneSubfield('" + new_id + "')");
+                    var buttonUp = clone.getElementsByTagName('img')[0];
+                    buttonUp.setAttribute('onclick',"upSubfield('" + new_id + "')");
+                }
+            }
+        }
+    }
+    catch(e){
+        // do nothing if ButtonPlus & CloneButtonPlus don't exist.
+    }
+    // insert this line on the page
+    original.parentNode.insertBefore(clone,original.nextSibling);
+}
+
+/**
+ * This function creates a random number
+ */
+function CreateKey(){
+    return parseInt(Math.random() * 100000);
 }
 
 $(document).ready(function() {
@@ -224,11 +471,49 @@ $(document).ready(function() {
                 [% IF ( ite.mandatory ) %] <span class="required">Required</span>[% END %]
             </div></li>
         [% END %]
+        <li>&nbsp;</li>
     </ol>
+    [% IF ( item_loop_index ) %]
+        <h3>M&aacute;s informaci&oacute;n</h3>
+        <ol>
+        [% FOREACH tag_loop IN item_loop_index %]
+            [% FOREACH field IN tag_loop %]
+                [% IF ( loop.first ) %]
+                    <li><strong>[% field.tag %]</strong> - <strong>[% field.taglib %]</strong></li>
+                [% END %]
+                <li>
+                    <ol id="tag_[% field.tag %]_[% field.tagindex %]" class="ol_tag">
+                    <li><div id="tagol[% field.tag %][% field.tagindex %]">[% field.tag %][% IF ( field.tagrepeatable ) %]
+                    <a href="#" tabindex="1" class="buttonPlus" onclick="CloneField('tag_[% field.tag %]_[% field.tagindex %]'); return false;" title="Repeat this Tag">+</a>&nbsp;
+                    <a href="#" tabindex="1" class="buttonMinus" onclick="UnCloneField('tag_[% field.tag %]_[% field.tagindex %]'); return false;" title="Delete this Tag">-</a>
+                    [% END %]
+                    <input type="hidden" name="tag[% field.tag %]_[% field.tagindex %]" value="[% field.tag %]" />
+                    </div></li>
+                [% FOREACH ite IN field.subfields %]
+                    <li><div class="subfield_line" style="[% ite.visibility %]" id="subfield[% ite.tag %][% ite.subfield %][% ite.random %]">
+
+                       <label>[% ite.subfield %] - [% IF ( ite.mandatory ) %]<b>[% END %][% ite.marc_lib %][% IF ( ite.mandatory ) %] *</b>[% END %]</label>
+                        [% ite.marc_value %]
+                        <input type="hidden" name="tag"       value="[% ite.tag %]" />
+                        <input type="hidden" name="subfield"  value="[% ite.subfield %]" />
+                        <input type="hidden" name="mandatory" value="[% ite.mandatory %]" />
+                        [% IF ( ite.repeatable ) %]
+                            <span class="buttonPlus" onclick="CloneSubfield('subfield[% ite.tag %][% ite.subfield %][% ite.random %]')">+</span>
+                        [% END %]
+                    </div></li>
+                [% END %]
+                    <li>&nbsp;</li>
+                    </ol>
+                </li>
+                <li>&nbsp;</li>
+            [% END %]
+        [% END %]
+    [% END %]
     </fieldset>
     <input type="hidden" name="indicator" value=" " />
     <input type="hidden" name="indicator" value=" " />
     <input type="hidden" name="itemnumber" value="[% itemnumber %]" />
+    <input type="hidden" name="more_info" value="[% moreInfo %]" />
 
 <fieldset class="action">    [% IF ( opisadd ) %]
     <input type="submit" name="phony_submit" value="phony_submit" id="phony_submit" style="display:none;" onclick="return false;" />
@@ -244,6 +529,9 @@ $(document).ready(function() {
 	<input type="text" id="number_of_copies" name="number_of_copies" value="" size="2" />
 	<input type="submit" id="add_multiple_copies_submit" name="add_multiple_copies_submit" value="Add" onclick="javascript:return Check(this.form) &amp;&amp; CheckMultipleAdd(this.form.number_of_copies.value);" />
     </span>
+    [% UNLESS (moreInfo) %]
+    <input type="submit" id="add_more_info_submit" name="add_more_info_submit" value="Add More Info" title="Add Item and display more info" onclick="this.form.more_info.value = '1'; return Check(this.form)" />
+    [% END %]
 
     [% ELSE %]
     <input type="hidden" name="tag" value="[% itemtagfield %]" />
