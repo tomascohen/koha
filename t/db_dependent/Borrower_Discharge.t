@@ -49,12 +49,45 @@ is( Koha::Borrower::Discharge::can_be_discharged({ borrowernumber => $borrowernu
 
 is(Koha::Borrower::Discharge::generate_as_pdf,undef,"Confirm failure when lacking borrower number");
 
-# Verify that the user is not discharged anymore if the restriction has been lifted
-Koha::Borrower::Discharge::discharge({ borrowernumber => $borrowernumber });
-is( Koha::Borrower::Discharge::is_discharged({ borrowernumber => $borrowernumber }), 1, 'The patron has been discharged' );
-is(Koha::Borrower::Debarments::IsDebarred($borrowernumber), '9999-12-31', 'The patron has been debarred after discharge');
-Koha::Borrower::Debarments::DelDebarment($borrowernumber);
-is( Koha::Borrower::Discharge::is_discharged({ borrowernumber => $borrowernumber }), 1, 'The patron is not discharged after the restriction has been lifted' );
+
+subtest "DelDebarment lifts discharges" => sub {
+
+    plan tests => 3;
+
+    Koha::Borrower::Discharge::discharge({ borrowernumber => $borrowernumber });
+    ok( Koha::Borrower::Discharge::is_discharged({ borrowernumber => $borrowernumber }),
+        'The patron has been discharged' );
+    is( Koha::Borrower::Debarments::IsDebarred($borrowernumber), '9999-12-31',
+        'The discharged patron is debarred');
+    Koha::Borrower::Debarments::DelDebarment($borrowernumber);
+    ok( ! Koha::Borrower::Discharge::is_discharged({ borrowernumber => $borrowernumber }),
+        'The patron is not discharged after the restriction has been lifted' );
+};
+
+subtest "Koha::Borrower::Discharge::discharge doesn't overwrite old discharges" => sub {
+
+    plan tests => 3;
+
+    my $borrowernumber = AddMember(
+        cardnumber => 'discharged',
+        firstname => 'my firstname',
+        surname => 'my surname',
+        categorycode => 'S',
+        branchcode => 'CPL',
+    );
+
+    Koha::Borrower::Discharge::discharge({ borrowernumber => $borrowernumber });
+    ok( Koha::Borrower::Discharge::is_discharged({ borrowernumber => $borrowernumber }),
+        'The patron has been discharged' );
+
+    my $validated = 
+
+    # Lift the discharge
+    Koha::Borrower::Debarments::DelDebarment($borrowernumber);
+    ok( ! Koha::Borrower::Discharge::is_discharged({ borrowernumber => $borrowernumber }),
+        'The patron is not discharged after the restriction has been lifted' );
+
+};
 
 # Check if PDF::FromHTML is installed.
 my $check = eval { require PDF::FromHTML; };
