@@ -23,12 +23,46 @@
 
   <refsynopsisdiv>
     <cmdsynopsis>
-      <command>koha-dump</command> <arg choice="req" rep="norepeat"><replaceable>instancename</replaceable></arg>
+      <command>koha-dump</command>
+      <arg choice="noreq">
+        <option>--help</option>|<option>-h</option>
+        <option>--include-indexes</option>|<option>-i</option>
+        <option>--quiet</option>|<option>-q</option>
+      </arg>
+      <arg choice="req" rep="repeat"><replaceable>instancename</replaceable></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
+  <refsect1>
+    <title>Options</title>
+    <variablelist>
+
+      <varlistentry>
+        <term><option>--include-indexes</option>|<option>-i</option></term>
+        <listitem>
+          <para>Make <command>koha-dump</command> include Zebra indexes during the dump operation. This is useful for fast recovering Koha instances using <command>koha-restore</command> (i.e. there's no need to reindex your database). The drawback is that dumps tend to be a lot bigger and slower to create.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--quiet</option>|<option>-q</option></term>
+        <listitem>
+          <para>Make <command>koha-dump</command> run silently.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--help</option>|<option>-h</option></term>
+        <listitem>
+          <para>Show usage information.</para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
   <refsect1><title>Description</title>
-  <para>Dump all contents and configs for a Koha site.</para>
+  <para>Dump all contents and configs for one or more Koha instances.</para>
   </refsect1>
   
   <refsect1><title>See also</title>
