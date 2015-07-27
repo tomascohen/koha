@@ -17,7 +17,6 @@
 
 use Modern::Perl;
 
-use t::lib::TestBuilder;
 use Test::More tests => 2;
 use Test::MockModule;
 
@@ -33,6 +32,7 @@ use MARC::Record;
 use MARC::Field;
 
 use Data::Printer colored => 1;
+use t::lib::TestBuilder;
 my $builder = t::lib::TestBuilder->new();
 
 # Mock userenv, used by AddIssue
@@ -44,7 +44,7 @@ $context->mock( 'userenv', sub {
 
 my $schema = Koha::Database->new()->schema();
 my $dbh = C4::Context->dbh;
-$dbh->{AutoCommit} = 0;
+$dbh->{AutoCommit} = 1;
 $dbh->{RaiseError} = 1;
 
 subtest "InProcessingToShelvingCart tests" => sub {
@@ -87,6 +87,7 @@ subtest "InProcessingToShelvingCart tests" => sub {
     is( $item->{location}, $permanent_location,
         "InProcessingToShelvingCart functions as intended" );
 };
+
 
 subtest "AddReturn logging on statistics table" => sub {
 
@@ -149,6 +150,8 @@ subtest "AddReturn logging on statistics table" => sub {
         type       => 'return',
         itemnumber => $item_with_itemtype->{ itemnumber }
     });
+    warn p($rs->all);
+
     is( $rs->first->itemtype, $item_with_itemtype->{ itype },
         "item-level itype recorded on statistics for return");
 
@@ -160,6 +163,7 @@ subtest "AddReturn logging on statistics table" => sub {
         type       => 'return',
         itemnumber => $item_without_itemtype->{ itemnumber }
     });
+    warn p($rs->all);
     is( $rs->first->itemtype, $blevel_itemtype,
         "biblio-level itype recorded on statistics for return");
 
