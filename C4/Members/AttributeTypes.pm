@@ -217,7 +217,7 @@ sub store {
         $sth = $dbh->prepare_cached("INSERT INTO borrower_attribute_types 
                                         (description, repeatable, unique_id, opac_display, opac_editable,
                                          staff_searchable, authorised_value_category, display_checkout, category_code, class, code)
-                                        VALUES (?, ?, ?, ?,
+                                        VALUES (?, ?, ?, ?, ?,
                                                 ?, ?, ?, ?, ?, ?)");
     }
     $sth->bind_param(1, $self->{'description'});
