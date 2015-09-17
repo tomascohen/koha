@@ -729,6 +729,7 @@ sub _new_Zconn {
 
     my $tried=0; # first attempt
     my $Zconn; # connection object
+    my $databaseName;
     my $elementSetName;
     my $index_mode;
     my $syntax;
@@ -736,9 +737,13 @@ sub _new_Zconn {
     $server //= "biblioserver";
 
     if ( $server eq 'biblioserver' ) {
-        $index_mode = $context->{'config'}->{'zebra_bib_index_mode'} // 'grs1';
+        $index_mode   = $context->{ 'config' }->{ 'zebra_bib_index_mode' } // 'grs1';
+        $databaseName = $context->{ 'config' }->{ $server } // 'biblios';
     } elsif ( $server eq 'authorityserver' ) {
-        $index_mode = $context->{'config'}->{'zebra_auth_index_mode'} // 'dom';
+        $index_mode   = $context->{ 'config' }->{ 'zebra_auth_index_mode' } // 'dom';
+        $databaseName = $context->{ 'config' }->{ $server } // 'authorities';
+    } else {
+        $index_mode = 'dom';
     }
 
     if ( $index_mode eq 'grs1' ) {
@@ -750,6 +755,14 @@ sub _new_Zconn {
     } else { # $index_mode eq 'dom'
         $syntax = 'xml';
         $elementSetName = 'marcxml';
+    }
+
+    # indicesserver specific configuration / Tomas
+    if ( $server eq 'indicesserver' ) {
+        $index_mode     = 'dom';
+        $elementSetName = 'F';
+        $syntax         = 'xml';
+        $databaseName   = 'indices';
     }
 
     my $host = $context->{'listen'}->{$server}->{'content'};
@@ -766,7 +779,7 @@ sub _new_Zconn {
         $o->option(cclfile=> $context->{"serverinfo"}->{$server}->{"ccl2rpn"});
         $o->option(preferredRecordSyntax => $syntax);
         $o->option(elementSetName => $elementSetName) if $elementSetName;
-        $o->option(databaseName => $context->{"config"}->{$server}||"biblios");
+        $o->option(databaseName => $databaseName);
 
         # create a new connection object
         $Zconn= create ZOOM::Connection($o);

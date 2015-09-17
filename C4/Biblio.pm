@@ -322,6 +322,7 @@ sub ModBiblio {
     # Cleaning up invalid fields must be done early or SetUTF8Flag is liable to
     # throw an exception which probably won't be handled.
     foreach my $field ($record->fields()) {
+#if( $field->tag != 655){
         if (! $field->is_control_field()) {
             if (scalar($field->subfields()) == 0 || (scalar($field->subfields()) == 1 && $field->subfield('9'))) {
                 $record->delete_field($field);
@@ -1820,7 +1821,7 @@ sub GetMarcSubjects {
         $maxtag = "699";
         $fields_filter = '6..';
     }
-
+		
     my @marcsubjects;
 
     my $subject_limit = C4::Context->preference("TraceCompleteSubfields") ? 'su,complete-subfield' : 'su';
@@ -1881,6 +1882,7 @@ sub GetMarcSubjects {
         };
 
     }
+#}
     return \@marcsubjects;
 }    #end getMARCsubjects
 
@@ -2989,6 +2991,14 @@ sub _koha_marc_update_bib_ids {
         $record->delete_field($old_field) if $old_field;
         $record->insert_fields_ordered($new_field);
     }
+    # Saving biblionumber in 001
+    # deal with biblionumber
+    my $field_001 = MARC::Field->new( '001', $biblionumber );
+
+    # drop old field and create new one...
+    my $old_field_001 = $record->field('001');
+    $record->delete_field($old_field_001) if $old_field_001;
+    $record->insert_fields_ordered($field_001);
 }
 
 =head2 _koha_marc_update_biblioitem_cn_sort
