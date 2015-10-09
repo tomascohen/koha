@@ -35,6 +35,6 @@ name="$1"
 kohaconfig="/etc/koha/sites/$name/koha-conf.xml"
 date="$(date +%Y-%m-%d)"
 
-#koha-dump "$name"
+koha-dump --quiet "$name" > /dev/null
 
-s3cmd --config=/etc/koha/s3cfg --acl-private put "/var/spool/koha/$name/$name-$date.tar.gz" "/var/spool/koha/$name/$name-$date.sql.gz" "s3://$name.cpbibliography/daily/"
+s3cmd --config=/etc/koha/s3cfg --acl-private put "/var/spool/koha/$name/$name-$date.tar.gz" "/var/spool/koha/$name/$name-$date.sql.gz" "s3://$name.theke/daily/"
