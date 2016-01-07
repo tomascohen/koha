@@ -136,6 +136,7 @@ sub new {
     }
 
     $response->set_handler( XML::SAX::Writer->new( Output => *STDOUT ) );
+    $response->xslt( "/opac-tmpl/bootstrap/en/xslt/OAI-FE.xsl" );
     $response->generate;
 
     bless $self, $class;
