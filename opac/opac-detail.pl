@@ -44,13 +44,12 @@ use C4::XSLT;
 use C4::ShelfBrowser;
 use C4::Reserves;
 use C4::Charset;
+use C4::IndicesItems;
 use MARC::Record;
 use MARC::Field;
 use List::MoreUtils qw/any none/;
 use C4::Images;
 use Koha::DateUtils;
-use C4::HTML5Media;
-use C4::CourseReserves qw(GetItemCourseReservesInfo);
 
 BEGIN {
 	if (C4::Context->preference('BakerTaylorEnabled')) {
@@ -70,57 +69,14 @@ my ( $template, $borrowernumber, $cookie ) = get_template_and_user(
     }
 );
 
-my $biblionumber = $query->param('biblionumber') || $query->param('bib') || 0;
+my $biblionumber = $query->param('biblionumber') || $query->param('bib');
 $biblionumber = int($biblionumber);
 
-my @all_items = GetItemsInfo($biblionumber);
-my @hiddenitems;
-if (scalar @all_items >= 1) {
-    push @hiddenitems, GetHiddenItemnumbers(@all_items);
-
-    if (scalar @hiddenitems == scalar @all_items ) {
-        print $query->redirect("/cgi-bin/koha/errors/404.pl"); # escape early
-        exit;
-    }
-}
-
-my $record       = GetMarcBiblio($biblionumber);
+my $record       = GetMarcBiblio($biblionumber, 1);
 if ( ! $record ) {
     print $query->redirect("/cgi-bin/koha/errors/404.pl"); # escape early
     exit;
 }
-
-# redirect if opacsuppression is enabled and biblio is suppressed
-if (C4::Context->preference('OpacSuppression')) {
-    # FIXME hardcoded; the suppression flag ought to be materialized
-    # as a column on biblio or the like
-    my $opacsuppressionfield = '942';
-    my $opacsuppressionfieldvalue = $record->field($opacsuppressionfield);
-    # redirect to opac-blocked info page or 404?
-    my $opacsuppressionredirect;
-    if ( C4::Context->preference("OpacSuppressionRedirect") ) {
-        $opacsuppressionredirect = "/cgi-bin/koha/opac-blocked.pl";
-    } else {
-        $opacsuppressionredirect = "/cgi-bin/koha/errors/404.pl";
-    }
-    if ( $opacsuppressionfieldvalue &&
-         $opacsuppressionfieldvalue->subfield("n") &&
-         $opacsuppressionfieldvalue->subfield("n") == 1) {
-        # if OPAC suppression by IP address
-        if (C4::Context->preference('OpacSuppressionByIPRange')) {
-            my $IPAddress = $ENV{'REMOTE_ADDR'};
-            my $IPRange = C4::Context->preference('OpacSuppressionByIPRange');
-            if ($IPAddress !~ /^$IPRange/)  {
-                print $query->redirect($opacsuppressionredirect);
-                exit;
-            }
-        } else {
-            print $query->redirect($opacsuppressionredirect);
-            exit;
-        }
-    }
-}
-
 $template->param( biblionumber => $biblionumber );
 
 # get biblionumbers stored in the cart
@@ -186,7 +142,6 @@ if ($session->param('busc')) {
 
         my $expanded_facet = $arrParamsBusc->{'expand'};
         my $branches = GetBranches();
-        my $itemtypes = GetItemTypes;
         my @servers;
         @servers = @{$arrParamsBusc->{'server'}} if $arrParamsBusc->{'server'};
         @servers = ("biblioserver") unless (@servers);
@@ -197,7 +152,7 @@ if ($session->param('busc')) {
         $sort_by[0] = $default_sort_by if !$sort_by[0] && defined($default_sort_by);
         my ($error, $results_hashref, $facets);
         eval {
-            ($error, $results_hashref, $facets) = getRecords($arrParamsBusc->{'query'},$arrParamsBusc->{'simple_query'},\@sort_by,\@servers,$results_per_page,$offset,$expanded_facet,$branches,$itemtypes,$arrParamsBusc->{'query_type'},$arrParamsBusc->{'scan'});
+            ($error, $results_hashref, $facets) = getRecords($arrParamsBusc->{'query'},$arrParamsBusc->{'simple_query'},\@sort_by,\@servers,$results_per_page,$offset,$expanded_facet,$branches,$arrParamsBusc->{'query_type'},$arrParamsBusc->{'scan'});
         };
         my $hits;
         my @newresults;
@@ -406,21 +361,20 @@ if ($session->param('busc')) {
         my $newbusc = rebuildBuscParam(\%arrParamsBusc);
         $session->param("busc" => $newbusc);
     }
-    my ($numberBiblioPaging, $dataBiblioPaging);
+    my ($previous, $next, $dataBiblioPaging);
     # Previous biblio
-    $numberBiblioPaging = $paging{'previous'}->{biblionumber};
-    if ($numberBiblioPaging) {
-        $template->param( 'previousBiblionumber' => $numberBiblioPaging );
-        $dataBiblioPaging = GetBiblioData($numberBiblioPaging);
+    if ($paging{'previous'}->{biblionumber}) {
+        $previous = 'opac-detail.pl?biblionumber=' . $paging{'previous'}->{biblionumber};
+        $dataBiblioPaging = GetBiblioData($paging{'previous'}->{biblionumber});
         $template->param('previousTitle' => $dataBiblioPaging->{'title'}) if ($dataBiblioPaging);
     }
     # Next biblio
-    $numberBiblioPaging = $paging{'next'}->{biblionumber};
-    if ($numberBiblioPaging) {
-        $template->param( 'nextBiblionumber' => $numberBiblioPaging );
-        $dataBiblioPaging = GetBiblioData($numberBiblioPaging);
+    if ($paging{'next'}->{biblionumber}) {
+        $next = 'opac-detail.pl?biblionumber=' . $paging{'next'}->{biblionumber};
+        $dataBiblioPaging = GetBiblioData($paging{'next'}->{biblionumber});
         $template->param('nextTitle' => $dataBiblioPaging->{'title'}) if ($dataBiblioPaging);
     }
+    $template->param('previous' => $previous, 'next' => $next);
     # Partial list of biblio results
     my @listResults;
     for (my $j = 0; $j < @arrBiblios; $j++) {
@@ -438,10 +392,12 @@ if ($session->param('busc')) {
 $template->param( 'AllowOnShelfHolds' => C4::Context->preference('AllowOnShelfHolds') );
 $template->param( 'ItemsIssued' => CountItemsIssued( $biblionumber ) );
 
-
+my $recordNoItems       = GetMarcBiblio($biblionumber);
 
 $template->param('OPACShowCheckoutName' => C4::Context->preference("OPACShowCheckoutName") );
 $template->param('OPACShowBarcode' => C4::Context->preference("OPACShowBarcode") );
+# change back when ive fixed request.pl
+my @all_items = GetItemsInfo( $biblionumber );
 
 # adding items linked via host biblios
 
@@ -464,6 +420,9 @@ foreach my $hostfield ( $record->field($analyticfield)) {
 
 my @items;
 
+# Getting items to be hidden
+my @hiddenitems = GetHiddenItemnumbers(@all_items);
+
 # Are there items to hide?
 my $hideitems;
 $hideitems = 1 if C4::Context->preference('hidelostitems') or scalar(@hiddenitems) > 0;
@@ -482,42 +441,9 @@ if ($hideitems) {
     @items = @all_items;
 }
 
-my $branches = GetBranches();
-my $branch = '';
-if (C4::Context->userenv){
-    $branch = C4::Context->userenv->{branch};
-}
-if ( C4::Context->preference('HighlightOwnItemsOnOPAC') ) {
-    if (
-        ( ( C4::Context->preference('HighlightOwnItemsOnOPACWhich') eq 'PatronBranch' ) && $branch )
-        ||
-        C4::Context->preference('HighlightOwnItemsOnOPACWhich') eq 'OpacURLBranch'
-    ) {
-        my $branchname;
-        if ( C4::Context->preference('HighlightOwnItemsOnOPACWhich') eq 'PatronBranch' ) {
-            $branchname = $branches->{$branch}->{'branchname'};
-        }
-        elsif (  C4::Context->preference('HighlightOwnItemsOnOPACWhich') eq 'OpacURLBranch' ) {
-            $branchname = $branches->{ $ENV{'BRANCHCODE'} }->{'branchname'};
-        }
-
-        my @our_items;
-        my @other_items;
-
-        foreach my $item ( @items ) {
-           if ( $item->{'branchname'} eq $branchname ) {
-               $item->{'this_branch'} = 1;
-               push( @our_items, $item );
-           } else {
-               push( @other_items, $item );
-           }
-        }
-
-        @items = ( @our_items, @other_items );
-    }
-}
-
 my $dat = &GetBiblioData($biblionumber);
+
+my $indicesObj = new C4::IndicesItems();
 
 my $itemtypes = GetItemTypes();
 # imageurl:
@@ -548,8 +474,6 @@ foreach my $subscription (@subscriptions) {
     $cell{branchcode}        = $subscription->{branchcode};
     $cell{branchname}        = GetBranchName($subscription->{branchcode});
     $cell{hasalert}          = $subscription->{hasalert};
-    $cell{callnumber}        = $subscription->{callnumber};
-    $cell{closed}            = $subscription->{closed};
     #get the three latest serials.
     $serials_to_display = $subscription->{opacdisplaycount};
     $serials_to_display = C4::Context->preference('OPACSerialIssueDisplayCount') unless $serials_to_display;
@@ -561,6 +485,13 @@ foreach my $subscription (@subscriptions) {
 
 $dat->{'count'} = scalar(@items);
 
+# If there is a lot of items, and the user has not decided
+# to view them all yet, we first warn him
+# TODO: The limit of 50 could be a syspref
+my $viewallitems = $query->param('viewallitems');
+if ($dat->{'count'} >= 50 && !$viewallitems) {
+    $template->param('lotsofitems' => 1);
+}
 
 my $biblio_authorised_value_images = C4::Items::get_authorised_value_images( C4::Biblio::get_biblio_authorised_values( $biblionumber, $record ) );
 
@@ -572,8 +503,8 @@ for ( C4::Context->preference("OPACShowHoldQueueDetails") ) {
 }
 my $has_hold;
 if ( $show_holds_count || $show_priority) {
-    my $reserves = GetReservesFromBiblionumber({ biblionumber => $biblionumber, all_dates => 1 });
-    $template->param( holds_count  => scalar( @$reserves ) ) if $show_holds_count;
+    my ($reserve_count,$reserves) = GetReservesFromBiblionumber($biblionumber);
+    $template->param( holds_count  => $reserve_count ) if $show_holds_count;
     foreach (@$reserves) {
         $item_reserves{ $_->{itemnumber} }++ if $_->{itemnumber};
         if ($show_priority && $_->{borrowernumber} == $borrowernumber) {
@@ -587,26 +518,13 @@ if ( $show_holds_count || $show_priority) {
 $template->param( show_priority => $has_hold ) ;
 
 my $norequests = 1;
+my $branches = GetBranches();
 my %itemfields;
-my (@itemloop, @otheritemloop);
-my $currentbranch = C4::Context->userenv ? C4::Context->userenv->{branch} : undef;
-if ($currentbranch and C4::Context->preference('OpacSeparateHoldings')) {
-    $template->param(SeparateHoldings => 1);
-}
-my $separatebranch = C4::Context->preference('OpacSeparateHoldingsBranch');
-my $viewallitems = $query->param('viewallitems');
-my $max_items_to_display = C4::Context->preference('OpacMaxItemsToDisplay') // 50;
-if ( not $viewallitems and @items > $max_items_to_display ) {
-    $template->param(
-        too_many_items => 1,
-        items_count => scalar( @items ),
-    );
-} else {
-  for my $itm (@items) {
+for my $itm (@items) {
     $itm->{holds_count} = $item_reserves{ $itm->{itemnumber} };
     $itm->{priority} = $priority{ $itm->{itemnumber} };
     $norequests = 0
-       if ( (not $itm->{'withdrawn'} )
+       if ( (not $itm->{'wthdrawn'} )
          && (not $itm->{'itemlost'} )
          && ($itm->{'itemnotforloan'}<0 || not $itm->{'itemnotforloan'} )
 		 && (not $itemtypes->{$itm->{'itype'}}->{notforloan} )
@@ -614,11 +532,17 @@ if ( not $viewallitems and @items > $max_items_to_display ) {
 
     # get collection code description, too
     my $ccode = $itm->{'ccode'};
-    $itm->{'ccode'} = $collections->{$ccode} if defined($ccode) && $collections && exists( $collections->{$ccode} );
+    $itm->{'ccode'} = $collections->{$ccode} if ( defined($collections) && exists( $collections->{$ccode} ) );
     my $copynumber = $itm->{'copynumber'};
     $itm->{'copynumber'} = $copynumbers->{$copynumber} if ( defined($copynumbers) && defined($copynumber) && exists( $copynumbers->{$copynumber} ) );
-    if ( defined $itm->{'location'} ) {
-        $itm->{'location_description'} = $shelflocations->{ $itm->{'location'} };
+    if ( defined $itm->{'location'} || defined $itm->{'homebranch'} || defined $itm->{'holdingbranch'}) {
+        if (defined $itm->{'location'}) {
+            $itm->{'location_description'} = $shelflocations->{ $itm->{'location'} };
+        } elsif (defined $itm->{'homebranch'}) {
+            $itm->{'location_description'} = GetBranchName($itm->{'homebranch'})
+        } else {
+            $itm->{'location_description'} = GetBranchName($itm->{'holdingbranch'});
+        }
     }
     if (exists $itm->{itype} && defined($itm->{itype}) && exists $itemtypes->{ $itm->{itype} }) {
         $itm->{'imageurl'}    = getitemtypeimagelocation( 'opac', $itemtypes->{ $itm->{itype} }->{'imageurl'} );
@@ -637,7 +561,7 @@ if ( not $viewallitems and @items > $max_items_to_display ) {
          $itm->{'lostimageurl'}   = $lostimageinfo->{ 'imageurl' };
          $itm->{'lostimagelabel'} = $lostimageinfo->{ 'label' };
      }
-     my $reserve_status = C4::Reserves::GetReserveStatus($itm->{itemnumber});
+     my ($reserve_status) = C4::Reserves::CheckReserves($itm->{itemnumber});
       if( $reserve_status eq "Waiting"){ $itm->{'waiting'} = 1; }
       if( $reserve_status eq "Reserved"){ $itm->{'onhold'} = 1; }
     
@@ -647,24 +571,38 @@ if ( not $viewallitems and @items > $max_items_to_display ) {
         $itm->{transfertfrom} = $branches->{$transfertfrom}{branchname};
         $itm->{transfertto}   = $branches->{$transfertto}{branchname};
      }
-    my $itembranch = $itm->{$separatebranch};
-    if ($currentbranch and C4::Context->preference('OpacSeparateHoldings')) {
-        if ($itembranch and $itembranch eq $currentbranch) {
-            push @itemloop, $itm;
-        } else {
-            push @otheritemloop, $itm;
-        }
-    } else {
-        push @itemloop, $itm;
-    }
-  }
-}
 
-# Display only one tab if one items list is empty
-if (scalar(@itemloop) == 0 || scalar(@otheritemloop) == 0) {
-    $template->param(SeparateHoldings => 0);
-    if (scalar(@itemloop) == 0) {
-        @itemloop = @otheritemloop;
+    # Modificación MASmedios --> obtener el campo Posesor 901*
+    $itm->{posesor} = $indicesObj->getIndiceFromItem($record, $itm->{itemnumber}, 'Posesor', ['b', 'c']);
+
+    # Modificación MASmedios --> obtener el campo Encuadernador 902*
+    $itm->{encuadernador} = $indicesObj->getIndiceFromItem($record, $itm->{itemnumber}, 'Encuadernador', ['b', 'c']);
+
+    # Modificación MASmedios -->
+=cut
+    if ($recordNoItems && $recordNoItems->field('952')) {
+        for my $field ( $recordNoItems->field('952') ) {
+            if($field->subfield('9') eq $itm->{itemnumber}){
+                $itm->{datosejemplar} = $itm->{paidfor} || $field->subfield('k');
+                $itm->{itemcallnumber} = $field->subfield('o') unless($itm->{itemcallnumber});
+                $itm->{enumchron} = $field->subfield('h') unless($itm->{enumchron});
+                last;
+            }
+        }
+    } 
+=cut
+# TEMPORAL XERCODE Mantis 0000306
+    if ($record && $record->field('952')) {
+        for my $field ( $record->field('952') ) {
+            if($field->subfield('9') eq $itm->{itemnumber}){
+                $itm->{datosejemplar} = $itm->{paidfor} || $field->subfield('k');
+                $itm->{itemcallnumber} = $field->subfield('o') unless($itm->{itemcallnumber});
+                $itm->{enumchron} = $field->subfield('h') unless($itm->{enumchron});
+                last;
+            }
+        }
+    } elsif ($itm->{paidfor}) {
+        $itm->{datosejemplar} = $itm->{paidfor};
     }
 }
 
@@ -726,9 +664,416 @@ if (C4::Context->preference("AlternateHoldingsField") && scalar @items == 0) {
         );
 }
 
+
+# Modificación MASmedios --> recoger los subcampos no numéricos de un campo determinado
+sub getDataNaNFromField
+{
+    my ($record, $tag, $multiple, $blank, $type) = @_;
+    
+    my $data;
+    if ($record && $record->field($tag)) {
+        $blank = '<br/>' unless ($blank);
+        $type = '' unless ($type);
+        $data = [] if ($type eq 'array');
+        foreach my $field ( $record->field($tag) ) {
+            my @subfields = $field->subfields();
+            my @subfieldsData = ();
+            foreach my $subfield (@subfields) {
+                if($subfield->[0] =~ /\D/ ) {
+                    if ($type eq 'array') {
+                        push @subfieldsData, {'code' => $subfield->[0], 'value' => $subfield->[1]};
+                    } else {
+                        $data .= $subfield->[1] . ' ';
+                    }
+                }
+            }
+            if ($type eq 'array' && @subfieldsData) {
+                push @$data, {subf => \@subfieldsData};
+            }
+            last unless ($multiple);
+            $data .= $blank if ($type ne 'array' && @subfields);
+        }
+    }
+    return $data;
+}#getDataNaNFromField
+
+# Modificación MASmedios --> recoger los subcampos a de un campo determinado
+sub getDataAFromField
+{
+    my ($record, $tag, $type, $fieldsAdditional) = @_;
+    
+    my $data;
+    if ($record && $record->field($tag)) {
+        $type = '' unless ($type);
+        $data = [] if ($type eq 'array');
+        foreach my $field ( $record->field($tag) ) {
+            if ($type && $type eq 'array') {
+                push @$data, {'value' => $field->subfield('a')};
+            } else {
+                $data .= $field->subfield('a') . '<br/>' if ($field->subfield('a'));
+                if ($fieldsAdditional && @$fieldsAdditional) {
+                    for my $subf (@$fieldsAdditional) {
+                        for my $subfield ($field->subfield($subf)) {
+                            $data .= $field->subfield($subf) . '<br/>' if ($field->subfield($subf));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return $data;
+}#getDataAFromField
+
+# Modificación MASmedios --> recoger los subcampos dterminados o no numéricos de unos campos que son auth determinados
+sub getAuthFromFields
+{
+    my ($record, $tags, $multiple) = @_;
+    
+    my @data = ();
+    if ($record) {
+        my ($tag, $ind, $code, $value);
+        TAG:
+        for $tag (sort keys %$tags) {
+            if ($record->field($tag)) {
+                FIELD:
+                foreach my $field ( $record->field($tag) ) {
+                    # filtro de indicadores
+                    if (exists($tags->{$tag}->{ind})) {
+                        for $ind (sort keys %{$tags->{$tag}->{ind}}) {
+                            if (defined($field->indicator($ind))) {
+                                my $okInd = 0;
+                                for (@{$tags->{$tag}->{ind}->{$ind}}) {
+                                    if ($field->indicator($ind) eq $_) {
+                                        $okInd = 1;
+                                        last;
+                                    }
+                                }
+                                next FIELD unless ($okInd);
+                            } else {
+                                next FIELD;
+                            }
+                        }
+                    }
+                    my @data_subfields = ();
+                    my @subfields = $field->subfields();
+                    my $link = '';
+                    if (@subfields) {
+                        if ($field->subfield('9')) {
+                            $link = $field->subfield('9');
+                        }
+                        foreach my $subfield (@subfields) {
+                            $code = $subfield->[0];
+                            # filtro de subcampos
+                            if (exists($tags->{$tag}->{subf})) {
+                                next unless (exists($tags->{$tag}->{subf}->{'A'}) || exists($tags->{$tag}->{subf}->{$code}));
+                            }
+                            $value = $subfield->[1];
+                            push @data_subfields, {code => $code, value => $value} if($code =~ /\D/ ); #todos las subcampos menos los numéricos
+                        }
+                    }
+                    last unless ($multiple);
+                    push @data, {tag => $tag, subf => \@data_subfields, link => $link};
+                }
+            }
+        }
+    }
+    return \@data;
+}#getAuthFromFields
+
+
+#print "Content-type: text/html\n\n";
+#print $record->fields()->[0];
 foreach ( keys %{$dat} ) {
-    $template->param( "$_" => defined $dat->{$_} ? $dat->{$_} : '' );
+        # Modificación MASmedios --> cogemos todos los subcampos del 100 y en caso de no estar el 100, cogemos el 110 ó el 111
+        my ($author, $author_no_a);
+        #print $_; print "----     ";
+        #print $dat->{$_};
+        #print "<br>";
+        #if(($_ eq "author") && !$dat->{$_}) {
+        if(($_ eq "author")) {
+            $author = getDataAFromField($record, '100');
+            unless (defined($author)) {
+                $author = getDataAFromField($record, '110');
+                unless (defined($author)) {
+                    $author = getDataAFromField($record, '111');
+                    $author_no_a = getDataNaNFromField($record, '111') if (defined($author));
+                } else {
+                    $author_no_a = getDataNaNFromField($record, '110');
+                }
+            } else {
+                $author_no_a = getDataNaNFromField($record, '100');
+            }
+            if (defined($author)) {
+                $author =~ s/<br\/>//g;
+                $author_no_a =~ s/^\s*$author//;
+                $template->param(author => $author, author_no_a => $author_no_a);
+            }
+        } elsif ($_ =~ /^(title|unititle)$/) {
+            my $strTitle = $dat->{$_};
+            my $fieldTitle;
+            if ($_ eq 'title') {
+                $fieldTitle = $record->field('245');
+            } else {
+                $fieldTitle = $record->field('240');
+            }
+            if ($fieldTitle) {
+                for my $subfieldTitle ($fieldTitle->subfields()) {
+                    if ($subfieldTitle->[0] ne 'a') {
+                        $strTitle .= ' ' . $subfieldTitle->[1];
+                    }
+                }
+            }
+            $template->param( "$_" => defined $strTitle ? $strTitle : '' );
+        } else {
+            $template->param( "$_" => defined $dat->{$_} ? $dat->{$_} : '' );
+        }
+
 }
+
+# Modificación MASmedios --> obtener el campo titulo uniforme 130 (encabezamiento principal)
+my $titulouniforme = getDataNaNFromField($record, '130');
+$template->param(titulouniforme => $titulouniforme) if (defined($titulouniforme));
+
+# Modificación MASmedios --> obtener el campo Notas: titulo anterior 247
+my $tit_anterior = getDataNaNFromField($record, '247', 1);
+$template->param(tit_anterior => $tit_anterior) if (defined($tit_anterior));
+
+# Modificación MASmedios --> obtener el campo Edición 250
+my $edicion = getDataNaNFromField($record, '250');
+$template->param(edicion => $edicion) if (defined($edicion));
+
+# Modificación MASmedios --> obtener el campo escala 255
+my $escala = getDataNaNFromField($record, '255');
+$template->param(escala => $escala) if (defined($escala));
+
+# Modificación MASmedios --> obtener el campo publicacion 260
+my $publicacion = getDataNaNFromField($record, '260');
+$template->param(publicacion => $publicacion) if (defined($publicacion));
+
+# Modificación MASmedios --> obtener el campo descripcion 300
+my $descripcion = getDataNaNFromField($record, '300');
+$template->param(descripcion => $descripcion) if (defined($descripcion));
+
+# Modificación MASmedios --> obtener el campo fecuencia 310
+my $frec = getDataNaNFromField($record, '310');
+$template->param(frec => $frec) if (defined($frec));
+
+# Modificación MASmedios --> obtener el campo fecuencia anterior 321
+my $frec_ant = getDataNaNFromField($record, '321');
+$template->param(frec_ant => $frec_ant) if (defined($frec_ant));
+
+# Modificación MASmedios --> obtener el campo Nota general 500
+my $nota_general = getDataAFromField($record, '500');
+$template->param(nota_general => $nota_general) if (defined($nota_general));
+
+# Modificación MASmedios --> obtener el campo Nota "con" 501
+my $nota_con = getDataAFromField($record, '501');
+$template->param(nota_con => $nota_con) if (defined($nota_con));
+
+# Modificación MASmedios --> obtener el campo Nota de bibliografia 504
+my $nota_bibl = getDataAFromField($record, '504');
+$template->param(nota_bibl => $nota_bibl) if (defined($nota_bibl));
+
+# Modificación MASmedios --> obtener el campo Notas: contenido 505
+my $cont_format = '';
+my @data505 = ();
+foreach my $field505 ( $record->field('505') ) {
+    if ($field505->indicator(1) == 7) {
+        my $refH505 = {};
+        $refH505->{'titulo'} = $field505->subfield('t') if ($field505->subfield('t'));
+        if ($field505->subfield('c')) {
+            $refH505->{'autor'} = $field505->subfield('c');
+        } elsif ($field505->subfield('r')) {
+            $refH505->{'autor'} = $field505->subfield('r');
+        }
+        $refH505->{'autorlink'} = ($field505->subfield('f'))?$field505->subfield('f'):$refH505->{'autor'};
+        $refH505->{'paginas'} = $field505->subfield('p') if (defined($field505->subfield('p')));
+        push @data505, $refH505;
+    } else {
+        my @subfields = $field505->subfields();
+        foreach my $subfield (@subfields) {
+            if($subfield->[0] =~ /\D/ ) {
+                $cont_format .= $subfield->[1] . ' ';
+            }
+        }
+        $cont_format .= '<br/>' if (@subfields);
+    }
+}
+$template->param(cont_format => $cont_format) if (defined($cont_format));
+$template->param(data505 => \@data505) if (@data505);
+
+# Modificación MASmedios --> obtener el campo Nota a la escala 507
+my $nota_escala = getDataAFromField($record, '507');
+$template->param(nota_escala => $nota_escala) if (defined($nota_escala));
+
+# Modificación MASmedios --> obtener el campo Notas: Bibl 510
+my $ref_bibl = getDataNaNFromField($record, '510', 1);
+$template->param(ref_bibl => $ref_bibl) if (defined($ref_bibl));
+
+# Modificación MASmedios --> obtener el campo Notas: sumario 520
+my $sumario = getDataNaNFromField($record, '520', 1);
+$template->param(sumario => $sumario) if (defined($sumario));
+
+# Modificación MASmedios --> obtener el campo Notas: sumario geografico 522
+my $sum_geo = getDataAFromField($record, '522');
+$template->param(sum_geo => $sum_geo) if (defined($sum_geo));
+
+# Modificación MASmedios --> obtener el campo Suplemento: suplemento 525
+my $suplemento = getDataAFromField($record, '525');
+$template->param(suplemento => $suplemento) if (defined($suplemento));
+
+# Modificación MASmedios --> obtener el campo Notas: Letra/lengua 546
+my $lengua = getDataNaNFromField($record, '546', 1);
+$template->param(lengua => $lengua) if (defined($lengua));
+
+# Modificación MASmedios --> obtener el campo Notas: indices 555
+my $indices = getDataNaNFromField($record, '555', 1);
+$template->param(indices => $indices) if (defined($indices));
+
+# Modificación MASmedios --> obtener el campo Notas: Procedencia 561
+my $procedencia = getDataAFromField($record, '561');
+$template->param(procedencia => $procedencia) if (defined($procedencia));
+
+# Modificación MASmedios --> obtener el campo Notas: editado en 580
+my $nota_compleja = getDataAFromField($record, '580', undef, ['6']);
+$template->param(nota_compleja => $nota_compleja) if (defined($nota_compleja));
+
+# Modificación MASmedios --> obtener el campo Notas: editado en 581
+my $editado_en = getDataAFromField($record, '581');
+$template->param(editado_en => $editado_en) if (defined($editado_en));
+
+# Modificación MASmedios --> obtener el campo Notas: incipit 592
+my $incipit = getDataNaNFromField($record, '592', 1);
+$template->param(incipit => $incipit) if (defined($incipit));
+
+# Modificación MASmedios --> obtener el campo Nota autor/título 594
+my $nota_autor = getDataAFromField($record, '594');
+$template->param(nota_autor => $nota_autor) if (defined($nota_autor));
+
+# Modificación MASmedios --> obtener el campo Nota historia editorial 595
+my $historia_edi = getDataAFromField($record, '595');
+$template->param(historia_edi => $historia_edi) if (defined($historia_edi));
+
+# Modificación MASmedios --> obtener el campo Notas: fecha/imprenta 596
+my $nota_fecha = getDataAFromField($record, '596');
+$template->param(nota_fecha => $nota_fecha) if (defined($nota_fecha));
+
+# Modificación MASmedios --> obtener el campo Notas: descripción física 597
+my $desc_fisica = getDataAFromField($record, '597');
+$template->param(desc_fisica => $desc_fisica) if (defined($desc_fisica));
+
+# Modificación MASmedios --> obtener el campo Notas: ilustracion 599
+my $ilustracion = getDataAFromField($record, '599');
+$template->param(ilustracion => $ilustracion) if (defined($ilustracion));
+
+# Modificación MASmedios --> obtener el campo Formas: formas 655
+my $formas = getAuthFromFields($record, {'655' => {subf => {'a' => 1}}}, 1);
+$template->param(formas => $formas) if (defined($formas));
+
+# Modificación MASmedios --> obtener el campo Onomastico: onomastico 700,710 con indicador 2 valores 1,2,3
+my $onomastico = getAuthFromFields($record, {'700' => {ind => {'1' => [1,2,3]}, subf => {'A' => 1, 'b' => 1, 'c' => 1, 'd' => 1, 'e' => 1, 'f' => 1, 'g' => 1, 'h' => 1, 'i' => 1, 'j' => 1, 'k' => 1, 'l' => 1, 'm' => 1, 'n' => 1, 'o' => 1, 'p' => 1, 'q' => 1, 'r' => 1, 's' => 1, 't' => 1, 'u' => 1, 'v' => 1, 'w' => 1, 'x' => 1, 'y' => 1, 'z' => 1}}, '710' => {ind => {'1' => [1,2,3]}, subf => {'a' => 1, 'b' => 1, 'c' => 1, 'd' => 1, 'e' => 1, 'f' => 1, 'g' => 1, 'h' => 1, 'i' => 1, 'j' => 1, 'k' => 1, 'l' => 1, 'm' => 1, 'n' => 1, 'o' => 1, 'p' => 1, 'q' => 1, 'r' => 1, 's' => 1, 't' => 1, 'u' => 1, 'v' => 1, 'w' => 1, 'x' => 1, 'y' => 1, 'z' => 1}}}, 1);
+$template->param(onomastico => $onomastico) if (defined($onomastico));
+
+# Modificación MASmedios --> obtener el campo Impresor/editor: impresores 700,710 con indicador 2 valores 4
+my $impresores = getAuthFromFields($record, {'700' => {ind => {'1' => [4]}, subf => {'A' => 1, 'b' => 1, 'c' => 1, 'd' => 1, 'e' => 1, 'f' => 1, 'g' => 1, 'h' => 1, 'i' => 1, 'j' => 1, 'k' => 1, 'l' => 1, 'm' => 1, 'n' => 1, 'o' => 1, 'p' => 1, 'q' => 1, 'r' => 1, 's' => 1, 't' => 1, 'u' => 1, 'v' => 1, 'w' => 1, 'x' => 1, 'y' => 1, 'z' => 1}}, '710' => {ind => {'1' => [4]}, subf => {'a' => 1, 'b' => 1, 'c' => 1, 'd' => 1, 'e' => 1, 'f' => 1, 'g' => 1, 'h' => 1, 'i' => 1, 'j' => 1, 'k' => 1, 'l' => 1, 'm' => 1, 'n' => 1, 'o' => 1, 'p' => 1, 'q' => 1, 'r' => 1, 's' => 1, 't' => 1, 'u' => 1, 'v' => 1, 'w' => 1, 'x' => 1, 'y' => 1, 'z' => 1}}}, 1);
+$template->param(impresores => $impresores) if (defined($impresores));
+
+# Modificación MASmedios --> Eliminar de autores los onomásticos e impresores mediante comparación del link $9
+my @autores = ();
+for my $hashRA (@$marcauthorsarray) {
+    my $found = 0;
+    for (@{$hashRA->{MARCAUTHOR_SUBFIELDS_LOOP}}) {
+        next unless (@{$_->{link_loop}});
+        my $link = $_->{link_loop}->[0]->{link};
+        if ($link =~ /^[0-9]+$/) {
+            for my $impresor (@$impresores) {
+                if ($impresor->{link} == $link) {
+                    $found = 1;
+                    last;
+                }
+            }
+            last if ($found);
+            for my $onomastic (@$onomastico) {
+                if ($onomastic->{link} == $link) {
+                    $found = 1;
+                    last;
+                }
+            }
+            last if ($found);
+        }
+    }
+    push @autores, $hashRA unless ($found);
+}
+$template->param(MARCAUTHORS => \@autores);
+
+# Modificación MASmedios --> obtener el campo titulo uniforme 730 (encabezamientos secundario)
+my $uniformtitle = getDataNaNFromField($record, '730', 1, ' | ', 'array');
+$template->param(uniformtitle => $uniformtitle) if (defined($uniformtitle));
+
+# Modificación MASmedios --> obtener el campo Notas: titulo alternativo 740
+my $titul_alt = getDataAFromField($record, '740', 'array');
+$template->param(titul_alt => $titul_alt) if (defined($titul_alt));
+
+# Modificación MASmedios --> obtener el campo Lugar de impresión 752
+my $lugar_imp = getDataNaNFromField($record, '752', 1);
+$template->param(lugar_imp => $lugar_imp) if (defined($lugar_imp));
+
+# Modificación MASmedios --> obtener el campo analíticas 773
+my @analytics773 = ();
+for my $field773 ($record->field('773')) {
+    my $ref773 = {};
+    for my $subfield773 ($field773->subfields()) {
+        if ($subfield773->[0] =~ /^[adgt]$/) {
+            $subfield773->[1] =~ s/-+$//g;
+            $ref773->{$subfield773->[0]} = $subfield773->[1];
+        }
+    }
+    push @analytics773, $ref773;
+}
+$template->param(analytics773 => \@analytics773) if (@analytics773);
+
+# Modificación MASmedios --> obtener el campo ejemplares 852
+my @ejemplares852 = ();
+my $numejemplar = 1;
+for my $field852 ($record->field('852')) {
+    my @arr852 = ();
+    for my $subfield852 ($field852->subfields()) {
+        if ($subfield852->[0] =~ /^[acipqrtuvwxz389]$/) {
+            my $ref852 = {};
+            $ref852->{'code'} = $subfield852->[0];
+            $ref852->{'data'} = $subfield852->[1];
+            push @arr852, $ref852;
+        }
+    }
+    my @ejemplar852 = map {$_->[0]} sort { $a->[1] cmp $b->[1] } map { [ $_, $_->{'code'} ] } @arr852;
+    push @ejemplares852, {'ejemplar' => \@ejemplar852, 'num' => $numejemplar++};
+}
+$template->param(ejemplares852 => \@ejemplares852) if (@ejemplares852);
+
+
+# Modificación MASmedios --> obtener el campo recursos electronicos 856
+my @electronic_location = ();
+for my $field856 ($record->field('856')) {
+    my $hashRef = {};
+    if ($field856->subfield('u')) {
+        $hashRef->{electronic_location} = $field856->subfield('u');
+        my $electronic_location_note = '';
+        if ($field856->subfield('y')) {
+            $electronic_location_note = $field856->subfield('y');
+        } elsif ($field856->subfield('z') && $field856->subfield('z') !~ /.+img\s+src/) {
+            $electronic_location_note = $field856->subfield('z');
+        } else {
+            $electronic_location_note = 'Acceso electr&oacute;nico';
+        }
+        $hashRef->{electronic_location_note} = $electronic_location_note;
+    }
+    if ($field856->subfield('z') && $field856->subfield('z') =~ /.+img\s+src\s*=\s*['"](http.+?)['"]/is) {
+        $hashRef->{electronic_location_img} = $1;
+    }
+    push @electronic_location, $hashRef;
+}
+$template->param('electronic_location' => \@electronic_location);
+
 
 # some useful variables for enhanced content;
 # in each case, we're grabbing the first value we find in
@@ -788,14 +1133,13 @@ foreach ( @$reviews ) {
 	}
 }
 
-
-if(C4::Context->preference("ISBD")) {
-	$template->param(ISBD => 1);
+# Modificación MASmedios --> comprobar que la vista ISBD está a off
+if(C4::Context->preference("ISBD") && C4::Context->preference("viewISBD")) {
+    $template->param(ISBD => 1);
 }
 
 $template->param(
-    itemloop            => \@itemloop,
-    otheritemloop       => \@otheritemloop,
+    ITEM_RESULTS        => \@items,
     subscriptionsnumber => $subscriptionsnumber,
     biblionumber        => $biblionumber,
     subscriptions       => \@subs,
@@ -854,11 +1198,6 @@ if (scalar(@serialcollections) > 0) {
 # Local cover Images stuff
 if (C4::Context->preference("OPACLocalCoverImages")){
 		$template->param(OPACLocalCoverImages => 1);
-}
-
-# HTML5 Media
-if ( (C4::Context->preference("HTML5MediaEnabled") eq 'both') or (C4::Context->preference("HTML5MediaEnabled") eq 'opac') ) {
-    $template->param( C4::HTML5Media->gethtml5media($record));
 }
 
 my $syndetics_elements;
@@ -960,27 +1299,24 @@ if ( C4::Context->preference( "SocialNetworks" ) ) {
 
 # Shelf Browser Stuff
 if (C4::Context->preference("OPACShelfBrowser")) {
-    my $starting_itemnumber = $query->param('shelfbrowse_itemnumber');
+    # pick the first itemnumber unless one was selected by the user
+    my $starting_itemnumber = $query->param('shelfbrowse_itemnumber'); # || $items[0]->{itemnumber};
     if (defined($starting_itemnumber)) {
         $template->param( OpenOPACShelfBrowser => 1) if $starting_itemnumber;
-        my $nearby = GetNearbyItems($starting_itemnumber);
+        my $nearby = GetNearbyItems($starting_itemnumber,3);
 
         $template->param(
-            starting_itemnumber => $starting_itemnumber,
             starting_homebranch => $nearby->{starting_homebranch}->{description},
             starting_location => $nearby->{starting_location}->{description},
             starting_ccode => $nearby->{starting_ccode}->{description},
-            shelfbrowser_prev_item => $nearby->{prev_item},
-            shelfbrowser_next_item => $nearby->{next_item},
-            shelfbrowser_items => $nearby->{items},
+            starting_itemnumber => $nearby->{starting_itemnumber},
+            shelfbrowser_prev_itemnumber => $nearby->{prev_itemnumber},
+            shelfbrowser_next_itemnumber => $nearby->{next_itemnumber},
+            shelfbrowser_prev_biblionumber => $nearby->{prev_biblionumber},
+            shelfbrowser_next_biblionumber => $nearby->{next_biblionumber},
+            PREVIOUS_SHELF_BROWSE => $nearby->{prev},
+            NEXT_SHELF_BROWSE => $nearby->{next},
         );
-
-        # in which tab shelf browser should open ?
-        if (grep { $starting_itemnumber == $_->{itemnumber} } @itemloop) {
-            $template->param(shelfbrowser_tab => 'holdings');
-        } else {
-            $template->param(shelfbrowser_tab => 'otherholdings');
-        }
     }
 }
 
@@ -1047,19 +1383,14 @@ my $marcissns = GetMarcISSN ( $record, $marcflavour );
 my $issn = $marcissns->[0] || '';
 
 if (my $search_for_title = C4::Context->preference('OPACSearchForTitleIn')){
+    $dat->{author} ? $search_for_title =~ s/{AUTHOR}/$dat->{author}/g : $search_for_title =~ s/{AUTHOR}//g;
     $dat->{title} =~ s/\/+$//; # remove trailing slash
     $dat->{title} =~ s/\s+$//; # remove trailing space
-    $search_for_title = parametrized_url(
-        $search_for_title,
-        {
-            TITLE         => $dat->{title},
-            AUTHOR        => $dat->{author},
-            ISBN          => $isbn,
-            ISSN          => $issn,
-            CONTROLNUMBER => $marccontrolnumber,
-            BIBLIONUMBER  => $biblionumber,
-        }
-    );
+    $dat->{title} ? $search_for_title =~ s/{TITLE}/$dat->{title}/g : $search_for_title =~ s/{TITLE}//g;
+    $isbn ? $search_for_title =~ s/{ISBN}/$isbn/g : $search_for_title =~ s/{ISBN}//g;
+    $issn ? $search_for_title =~ s/{ISSN}/$issn/g : $search_for_title =~ s/{ISSN}//g;
+    $marccontrolnumber ? $search_for_title =~ s/{CONTROLNUMBER}/$marccontrolnumber/g : $search_for_title =~ s/{CONTROLNUMBER}//g;
+    $search_for_title =~ s/{BIBLIONUMBER}/$biblionumber/g;
     $template->param('OPACSearchForTitleIn' => $search_for_title);
 }
 
@@ -1071,7 +1402,7 @@ my $defaulttab =
         ? 'subscriptions' :
     $opac_serial_default eq 'serialcollection' && @serialcollections > 0
         ? 'serialcollection' :
-    $opac_serial_default eq 'holdings' && scalar (@itemloop) > 0
+    $opac_serial_default eq 'holdings' && $dat->{'count'} > 0
         ? 'holdings' :
     $subscriptionsnumber
         ? 'subscriptions' :
@@ -1084,20 +1415,8 @@ if (C4::Context->preference('OPACLocalCoverImages') == 1) {
     $template->{VARS}->{localimages} = \@images;
 }
 
-$template->{VARS}->{IDreamBooksReviews} = C4::Context->preference('IDreamBooksReviews');
-$template->{VARS}->{IDreamBooksReadometer} = C4::Context->preference('IDreamBooksReadometer');
-$template->{VARS}->{IDreamBooksResults} = C4::Context->preference('IDreamBooksResults');
-$template->{VARS}->{OPACPopupAuthorsSearch} = C4::Context->preference('OPACPopupAuthorsSearch');
-
 if (C4::Context->preference('OpacHighlightedWords')) {
     $template->{VARS}->{query_desc} = $query->param('query_desc');
-}
-$template->{VARS}->{'trackclicks'} = C4::Context->preference('TrackClicks');
-
-if ( C4::Context->preference('UseCourseReserves') ) {
-    foreach my $i ( @items ) {
-        $i->{'course_reserves'} = GetItemCourseReservesInfo( itemnumber => $i->{'itemnumber'} );
-    }
 }
 
 output_html_with_http_headers $query, $cookie, $template->output;

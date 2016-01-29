@@ -383,7 +383,9 @@ my @indexes = $cgi->param('idx');
 
 # if a simple index (only one)  display the index used in the top search box
 if ($indexes[0] && !$indexes[1]) {
-    $template->param("ms_".$indexes[0] => 1);
+my $ms_index_value = $indexes[0];
+    $ms_index_value = $1 if ($ms_index_value =~ /^(.+),.+$/);  
+  $template->param("ms_".$indexes[0] => 1);
 }
 # an operand can be a single term, a phrase, or a complete ccl query
 my @operands = $cgi->param('q');

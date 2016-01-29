@@ -304,7 +304,7 @@ sub addIndicesItemsFromHtml
         # Se supone que los campos los devuelve en orden tal y como están en el form
         # ver http://search.cpan.org/dist/CGI/lib/CGI.pm#FETCHING_THE_NAMES_OF_ALL_THE_PARAMETERS_PASSED_TO_YOUR_SCRIPT:
         for $campoHtml ($input->param()) {
-            #print "$campoHtml:" . $input->param($campoHtml) . "\n";
+            print STDERR "TOMAS: $campoHtml:" . $input->param($campoHtml) . "\n";
             if ($campoHtml =~ /^tag([0-9]+)_[0-9]+$/ && exists($self->{indexFields}->{$1})) {
                 $tag = $1;
                 if (!exists($borrados{$tag})) {
@@ -458,8 +458,6 @@ sub searchZebra
 
     my ($results, $hits, $resultsQuery);
     my $Zconn = C4::Context->Zconn( $server, 0, 1, '', $format);
-    use Data::Printer colored => 1;
-    warn p($Zconn);
     eval {
         if ($Zconn && $Zconn->errcode() == 0) {
             $resultsQuery = $Zconn->search_pqf($query);
@@ -605,7 +603,8 @@ sub deleteIndice
             if ($totalB ==1 && $biblionumber) {
                 my $marcRecord;
                 eval {
-                    $marcRecord = MARC::Record->new_from_usmarc($resultsB->[0]);
+                    ##$marcRecord = MARC::Record->new_from_usmarc($resultsB->[0]);
+                    $marcRecord = MARC::Record->new_from_xml($resultsB->[0]);
                 };
                 unless ($@) {
                     return if (!$marcRecord || $biblionumber != $marcRecord->subfield('999', 'c'));
@@ -704,7 +703,6 @@ sub searchOnIndices
         $query = ($query_or)?substr($query_or, 0, -4) . ' ' . $query:'' . $query;
     }
     $query = '@or ' . $query . ' @attr 7=' . ((!$orderby || $orderby eq 'HeadingAsc')?1:2) . ' @attr 1=indice 0';
-    warn "'indicesserver', $query, $offset, $limit, 'xml'";
     my ($err, $results, $hits) = $self->searchZebra('indicesserver', $query, $offset, $limit, 'xml');
     my $totalBiblios = 0;
     if ($results && @$results) {
@@ -730,6 +728,7 @@ sub searchOnIndices
             $totalBiblios = $self->_countTotalRecordsFromDataIndex($term, $indexes);
         }
     }
+    warn "TOTAL: $totalBiblios";
     return ($hits, $dataResults, $totalBiblios);
 }#searchOnIndices
 
@@ -789,7 +788,7 @@ sub _countRecordsFromDataIndex
     if ($total) {
         eval {
             my $record = $results->record(0)->raw();
-            $marcrecord = MARC::Record->new_from_usmarc($record);
+            $marcrecord = MARC::Record->new_from_xml($record);
             $results->destroy();
         };
     }
