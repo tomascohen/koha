@@ -247,6 +247,24 @@
 </serverinfo>
 -->
 
+<listen id="indicesserver">unix:/var/run/koha/__KOHASITE__/indicesocket</listen>                                               
+<server id="indicesserver" listenref="indicesserver" >
+    <directory>/var/lib/koha/__KOHASITE__/indices</directory>
+    <config>/etc/koha/sites/__KOHASITE__/zebra-indices-dom.cfg</config>
+    <explain xmlns="http://explain.z3950.org/dtd/2.0/">
+        <serverInfo>
+            <host>__ZEBRA_SRU_HOST__</host>
+            <port>9960</port>
+            <database>indices</database>
+        </serverInfo>
+    </explain>
+</server>
+
+<serverinfo id="indicesserver">
+    <user>kohauser</user>
+    <password>__ZEBRA_PASS__</password>
+</serverinfo>
+
 <config>
  <db_scheme>mysql</db_scheme>
  <database>__DB_NAME__</database>

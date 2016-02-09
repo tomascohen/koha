@@ -1,0 +1,7 @@
+# Bib-1 Attribute Set for indices records
+name bib1
+reference Bib-1
+
+att 12        indice
+att 9001      tipo
+

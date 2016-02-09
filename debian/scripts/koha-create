@@ -563,6 +563,8 @@ eof
         "/etc/koha/sites/$name/zebra-authorities-dom.cfg"
     generate_config_file zebra.passwd.in \
         "/etc/koha/sites/$name/zebra.passwd"
+    generate_config_file zebra-indices-dom-site.cfg.in \
+        "/etc/koha/sites/$name/zebra-indices-dom.cfg"
 
 
     # Create a GPG-encrypted file for requesting a DB to be set up.
