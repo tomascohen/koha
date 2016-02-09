@@ -28,7 +28,7 @@ use Getopt::Long;
 use POSIX qw/strftime/;
 
 my $buildresult;
-my $distribution='squeeze-dev';
+my $distribution='real';
 my $git_checks='all';
 my $version='3.16~git';
 my $auto_version=1;
