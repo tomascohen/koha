@@ -890,7 +890,7 @@
                     </fieldset>
                [% END %]
 
-                [% IF ( Koha.Preference('ExtendedPatronAttributes') && patron_attribute_classes.size ) %]
+                [% IF ( Koha.Preference('ExtendedPatronAttributes') && patron_attribute_classes.size && !Koha.Preference('PatronSelfRegistrationVerifyByEmail') ) %]
                     [% FOREACH pa_class IN patron_attribute_classes %]
                         [% IF pa_class.class %]
                             <fieldset id="aai_[% pa_loo.class %]" class="rows patron-attributes">
@@ -927,16 +927,16 @@
                                             [% ELSE %]
                                                 <textarea rows="2" cols="30" id="[% form_id %]" name="patron_attribute_value">[% pa_value.value %]</textarea>
                                             [% END %]
-                                            [% IF ( pa.type.password_allowed ) %]
-                                                (<label class="lradio" for="[% form_id %]_password">Password:</label>
-                                                <input type="password" maxlength="64" value="[% pa_value.password %]" id="[% form_id %]_password" name="patron_attribute_password" />)
-                                            [% ELSE %]
-                                                [%# To keep the form inputs lined up in the POST %]
-                                                <input type="hidden" name="patron_attribute_password" value="" />
-                                            [% END %]
                                             <a href="#" class="clear-attribute">Clear</a>
                                             [% IF ( pa.type.repeatable ) %]
                                             <a href="#" class="clone-attribute">New</a>
+                                            [% END %]
+                                            [% IF ( pa.type.password_allowed ) %]
+                                                </li><li><label for="[% form_id %]_password">Password:</label>
+                                                <input type="password" maxlength="64" value="[% pa_value.password %]" id="[% form_id %]_password" name="patron_attribute_password" />
+                                            [% ELSE %]
+                                                [%# To keep the form inputs lined up in the POST %]
+                                                <input type="hidden" name="patron_attribute_password" value="" />
                                             [% END %]
                                         [% ELSE %]
                                             [% IF ( pa.type.authorised_value_category ) %]

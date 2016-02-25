@@ -464,8 +464,6 @@ sub DelEmptyFields {
 sub GeneratePatronAttributesForm {
     my ( $borrower, $entered_attributes ) = @_;
 
-    use Data::Dumper; warn Dumper( $entered_attributes );
-
     # Get all attribute types and the values for this patron (if applicable)
     my @types = C4::Members::AttributeTypes::GetAttributeTypes();
 
@@ -509,8 +507,6 @@ sub GeneratePatronAttributesForm {
             values => $attr_values{ $attr_type->code() } || [{}]
         };
     }
-
-    use Data::Dumper; warn Dumper( \%items_by_class );
 
     # Finally, build a list of containing classes
     my @class_loop;
