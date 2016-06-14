@@ -3137,3 +3137,8 @@ fieldset.rows + fieldset.action {
 table#ill-requests {
     width: 100% !important;
 }
+
+span.name {
+    font-weight: bold;
+    font-style: italic;
+}
