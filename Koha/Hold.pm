@@ -20,8 +20,10 @@ package Koha::Hold;
 use Modern::Perl;
 
 use Carp;
+use Data::Dumper qw(Dumper);
 
 use C4::Context qw(preference);
+use C4::Log;
 
 use Koha::DateUtils qw(dt_from_string);
 use Koha::Patrons;
@@ -62,6 +64,9 @@ sub suspend_hold {
 
     $self->store();
 
+    logaction( 'HOLDS', 'SUSPEND', $self->reserve_id, Dumper($self->unblessed) )
+        if C4::Context->preference('HoldsLog');
+
     return $self;
 }
 
@@ -78,6 +83,9 @@ sub resume {
     $self->suspend_until( undef );
 
     $self->store();
+
+    logaction( 'HOLDS', 'RESUME', $self->reserve_id, Dumper($self->unblessed) )
+        if C4::Context->preference('HoldsLog');
 
     return $self;
 }
