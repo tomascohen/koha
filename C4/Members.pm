@@ -1809,7 +1809,7 @@ sub GetBorrowersToExpunge {
                              && !C4::Context->IsSuperLibrarian()
                              && C4::Context->userenv->{branch})
                          ? C4::Context->userenv->{branch}
-                         : "");  
+                         : "");
     my $filterpatronlist = $params->{'patron_list_id'};
 
     my $dbh   = C4::Context->dbh;
