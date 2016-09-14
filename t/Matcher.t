@@ -20,11 +20,13 @@ use Modern::Perl;
 use Test::More;
 use Test::MockModule;
 
+use MARC::Record;
+
 use Module::Load::Conditional qw/check_install/;
 
 BEGIN {
     if ( check_install( module => 'Test::DBIx::Class' ) ) {
-        plan tests => 11;
+        plan tests => 12;
     } else {
         plan skip_all => "Need Test::DBIx::Class"
     }
@@ -81,5 +83,72 @@ is( $testmatcher->code(), 'match on ISBN', 'testing code accessor' );
 $testmatcher->description('match on ISSN');
 
 is( $testmatcher->description(), 'match on ISSN', 'testing code accessor' );
+
+subtest '_get_match_keys() tests' => sub {
+
+    plan tests => 3;
+
+    use Data::Printer colored => 1;
+
+    my $matchpoint = get_matchpoint({
+        length => 0,
+        norms  => [],
+        offset => 0
+    });
+
+    my $record = MARC::Record->new();
+    $record->append_fields(
+        MARC::Field->new('100', ' ', ' ', a => 'King, Stephen'),
+        MARC::Field->new('245', ' ', ' ', a => '  .; inSO[]:,mn(i)/A\'"' )
+    );
+
+    my @keys = C4::Matcher::_get_match_keys( $record, $matchpoint );
+
+    is( $keys[0], 'INSOMNIA', 'Match key correctly calculated with no $norms');
+
+    $matchpoint = get_matchpoint({
+        length => 9,
+        norms  => [],
+        offset => 0
+    });
+    @keys = C4::Matcher::_get_match_keys( $record, $matchpoint );
+    is( $keys[0], 'INS', 'Match key correctly calculated with length 9');
+
+    $matchpoint = get_matchpoint({
+        length => 9,
+        norms  => [],
+        offset => 1
+    });
+    @keys = C4::Matcher::_get_match_keys( $record, $matchpoint );
+    is( $keys[0], 'INSO', 'Match key correctly calculated with length 9 and offset 1');
+};
+
+sub get_matchpoint {
+
+    my $params = shift;
+
+    my $length = $params->{length} // 0;
+    my $norms  = $params->{norms}  // [];
+    my $offset = $params->{offset} // 0;
+
+    my $matchpoint = {
+        components =>  [
+            {
+                length    => $length,
+                norms     => $norms,
+                offset    => $offset,
+                subfields =>
+                    {
+                        a => 1
+                    },
+                tag => '245'
+            }
+        ],
+        index => "title",
+        score => 1000
+    };
+
+    return $matchpoint;
+}
 
 1;
