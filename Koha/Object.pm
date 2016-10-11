@@ -22,6 +22,7 @@ use Modern::Perl;
 use Carp;
 
 use Koha::Database;
+use Koha::Exceptions::Object;
 
 =head1 NAME
 
@@ -185,8 +186,7 @@ sub set {
 
     foreach my $p ( keys %$properties ) {
         unless ( grep {/^$p$/} @columns ) {
-            carp("No property $p!");
-            return 0;
+            Koha::Exceptions::Object::PropertyNotFound->throw( "No property $p for " . ref($self) );
         }
     }
 
@@ -273,10 +273,9 @@ sub AUTOLOAD {
             my $value = $self->_result()->get_column( $method );
             return $value;
         }
+    } else {
+        Koha::Exceptions::Object::MethodNotFound->throw( "No method $method for " . ref($self) );
     }
-
-    carp "No method $method!";
-    return;
 }
 
 =head3 _type
