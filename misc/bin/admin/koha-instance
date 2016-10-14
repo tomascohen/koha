@@ -1,0 +1,129 @@
+#!/usr/bin/perl
+
+# Copyright 2016 Theke Solutions
+#
+# This file is part of Koha.
+#
+# Koha is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# Koha is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Koha; if not, see <http://www.gnu.org/licenses>.
+
+use Modern::Perl;
+
+# script-specific
+use Getopt::Long;
+use Pod::Usage;
+
+# logic-specific
+use Config::JSON;
+use JSON;
+
+# debug
+use Data::Printer;
+
+=head1 NAME
+
+koha-instance - Koha instance management script
+
+=head1 SYNOPSIS
+
+koha-instance
+
+ Options:
+   -help                          brief help message
+   -v                             verbose
+
+=cut
+
+my $output_file;
+
+my $marcflavor = 'marc21';
+my $zebralang = 'en';
+# 
+my $memcached = {
+    enabled => 0,
+    servers => 'localhost:11211',
+    namespace  => 'koha_'
+};
+# Z39.59/SRU server options
+my $sru = {
+    enabled => 1,
+    port => undef
+};
+# Database
+my $database = {
+    driver    => 'mysql',
+    name      => 'koha',
+    host      => 'localhost',
+    port      => '3306',
+    user      => 'kohaadmin',
+    password  => 'katikoan'
+};
+# Zebra
+my $default_zebra = {
+    biblioserver => 'biblios',
+    biblioservershadow => 1,
+    authorityserver => 'authorities',
+    authorityshadow => 1,
+    zebra_bib_index_mode => 'dom',
+    zebra_auth_index_mode => 'dom',
+    zebra_lockdir => '/var/lock/koha',
+    use_zebra_facets => 1
+};
+
+my $default_upload_path = {
+    base_path => '/var/lib/koha',
+    dir => 'uploads'
+};
+
+GetOptions(
+    'marcflavor=s' => \$marcflavor,
+    'zebralang=s' => \$zebralang,
+    'use-memcached' => \$memcached->{ enabled },
+    'memcached-servers=s' => \$memcached->{ servers },
+    'memcached-prefix=s' => \$memcached->{ prefix },
+    'enable-sru' => \$sru->{ enabled },
+    'sru-port=s' => \$sru->{ port }
+
+) or pod2usage;
+
+
+my $config = Config::JSON->create(
+    './config-new.json'
+);
+
+my $default_authentication = {
+    ldap => 0,
+    shibboleth => 0
+};
+
+
+my $default_marc_flavor = 'marc21';
+
+
+
+# my $context = C4::Context->new();
+
+# p($context->{config});
+$config->set( 'database', $default_database );
+$config->set( 'zebra', $default_zebra );
+$config->set( 'authentication', $default_authentication);
+$config->set( 'sru', $sru );
+$config->set( 'marc_flavor', $default_marc_flavor );
+$config->set( 'memcached', $memcached );
+
+# $config->set( 'config', $context->{config});
+p($config->config);
+my $ref = ref($config->config);
+p($ref);
+
+1;
