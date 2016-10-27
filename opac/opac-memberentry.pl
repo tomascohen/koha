@@ -23,7 +23,6 @@ use List::MoreUtils qw( each_array uniq );
 use String::Random qw( random_string );
 
 use C4::Auth;
-use C4::Koha qw( GetAuthorisedValueByCode );
 use C4::Output;
 use C4::Members;
 use C4::Form::MessagingPreferences;
@@ -513,7 +512,9 @@ sub GeneratePatronAttributesForm {
     foreach my $class (@classes) {
         next unless ( $items_by_class{$class} );
 
-        my $lib = GetAuthorisedValueByCode( 'PA_CLASS', $class, 1 ) || $class;
+        my $av = Koha::AuthorisedValues->search({ category => 'PA_CLASS', authorised_value => $class });
+        my $lib = $av->count ? $av->next->opac_description : $class;
+
         push @class_loop, {
             class => $class,
             items => $items_by_class{$class},

@@ -215,23 +215,34 @@ sub store {
                                      WHERE code = ?");
     } else {
         $sth = $dbh->prepare_cached("INSERT INTO borrower_attribute_types 
-                                        (description, repeatable, unique_id, opac_display, opac_editable,
-                                         staff_searchable, authorised_value_category, display_checkout, category_code, class, code)
-                                        VALUES (?, ?, ?, ?, ?,
-                                                ?, ?, ?, ?, ?, ?)");
+                                        ( description,
+                                          repeatable,
+                                          unique_id,
+                                          opac_display,
+                                          opac_editable,
+                                          staff_searchable,
+                                          authorised_value_category,
+                                          display_checkout,
+                                          category_code,
+                                          class,
+                                          code
+                                        )
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     }
-    $sth->bind_param(1, $self->{'description'});
-    $sth->bind_param(2, $self->{'repeatable'});
-    $sth->bind_param(3, $self->{'unique_id'});
-    $sth->bind_param(4, $self->{'opac_display'});
-    $sth->bind_param(5, $self->{'opac_editable'});
-    $sth->bind_param(7, $self->{'staff_searchable'});
-    $sth->bind_param(8, $self->{'authorised_value_category'});
-    $sth->bind_param(9, $self->{'display_checkout'});
-    $sth->bind_param(10, $self->{'category_code'} || undef);
-    $sth->bind_param(11, $self->{'class'});
-    $sth->bind_param(12, $self->{'code'});
-    $sth->execute;
+
+    $sth->execute(
+        $self->{'description'},
+        $self->{'repeatable'},
+        $self->{'unique_id'},
+        $self->{'opac_display'},
+        $self->{'opac_editable'},
+        $self->{'staff_searchable'} || 0,
+        $self->{'authorised_value_category'},
+        $self->{'display_checkout'},
+        $self->{'category_code'} || undef,
+        $self->{'class'},
+        $self->{'code'}
+    );
 
     if ( defined $$self{branches} ) {
         $sth = $dbh->prepare("DELETE FROM borrower_attribute_types_branches WHERE bat_code = ?");
