@@ -19,7 +19,7 @@ use Modern::Perl;
 
 use Koha::Database;
 
-use base qw(Koha::Object Koha::Object::Library::Limit);
+use base qw(Koha::Object Koha::Object::Limit::Library);
 
 =head1 NAME
 

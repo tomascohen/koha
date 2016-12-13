@@ -1,4 +1,4 @@
-package Koha::Object::Library::Limit;
+package Koha::Object::Limit::Library;
 
 # This file is part of Koha.
 #
@@ -24,11 +24,11 @@ use Try::Tiny;
 
 =head1 NAME
 
-Koha::Object::Library::Limit - Generic library limit handling class
+Koha::Object::Limit::Library - Generic library limit handling class
 
 =head1 SYNOPSIS
 
-    use base qw(Koha::Object Koha::Object::Library::Limit);
+    use base qw(Koha::Object Koha::Object::Limit::Library);
     my $object = Koha::Object->new({ property1 => $property1, property2 => $property2, etc... } );
 
 =head1 DESCRIPTION
