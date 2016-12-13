@@ -22,9 +22,11 @@ use Modern::Perl;
 use Carp;
 
 use Koha::Database;
-
-use Koha::Patron::Modifications;
 use Koha::Exceptions::Patron::Modification;
+use Koha::Patron::Modifications;
+
+use JSON;
+use Try::Tiny;
 
 use base qw(Koha::Object);
 
@@ -44,15 +46,31 @@ sub store {
     my ($self) = @_;
 
     if ( $self->verification_token ) {
-        if ( Koha::Patron::Modifications->search( { verification_token => $self->verification_token } )->count() ) {
-            Koha::Exceptions::Patron::Modification::DuplicateVerificationToken->throw(
-                "Duplicate verification token " . $self->verification_token
-            );
+        if (Koha::Patron::Modifications->search(
+                { verification_token => $self->verification_token }
+            )->count()
+            )
+        {
+            Koha::Exceptions::Patron::Modification::DuplicateVerificationToken
+                ->throw(
+                "Duplicate verification token " . $self->verification_token );
         }
+    }
+
+    if ( $self->extended_attributes ) {
+        try {
+            my $json_parser = JSON->new;
+            $json_parser->decode( $self->extended_attributes );
+        }
+        catch {
+            Koha::Exceptions::Patron::Modification::InvalidData->throw(
+                'The passed extended_attributes is not valid JSON');
+        };
     }
 
     return $self->SUPER::store();
 }
+
 
 =head2 approve
 
