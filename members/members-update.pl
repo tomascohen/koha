@@ -53,7 +53,6 @@ my $borrowers;
 foreach my $pm (@$pending_modifications) {
     $borrowers->{ $pm->{'borrowernumber'} } =
       GetMember( borrowernumber => $pm->{'borrowernumber'} );
-
 }
 
 $template->param(

@@ -27,6 +27,7 @@ use String::Random qw( random_string );
 use C4::Auth;
 use C4::Output;
 use C4::Members;
+use C4::Members::Attributes qw( GetBorrowerAttributes );
 use C4::Form::MessagingPreferences;
 use Koha::Patrons;
 use Koha::Patron::Modification;
@@ -37,6 +38,8 @@ use Koha::DateUtils;
 use Koha::Libraries;
 use Koha::Patron::Images;
 use Koha::Token;
+
+use Data::Printer;
 
 my $cgi = new CGI;
 my $dbh = C4::Context->dbh;
@@ -251,7 +254,7 @@ elsif ( $action eq 'update' ) {
     }
     else {
         my %borrower_changes = DelUnchangedFields( $borrowernumber, %borrower );
-        if (%borrower_changes) {
+        if (%borrower_changes or CheckExtendedAttributesChanges( $borrowernumber, $attributes )) {
             ( $template, $borrowernumber, $cookie ) = get_template_and_user(
                 {
                     template_name   => "opac-memberentry-update-submitted.tt",
@@ -283,6 +286,7 @@ elsif ( $action eq 'update' ) {
                 action => 'edit',
                 nochanges => 1,
                 borrower => GetMember( borrowernumber => $borrowernumber ),
+                patron_attribute_classes => GeneratePatronAttributesForm( undef, $attributes ),
                 csrf_token => Koha::Token->new->generate_csrf({
                     id     => $borrower->{userid},
                     secret => md5_base64( Encode::encode( 'UTF-8', C4::Context->config('pass') ) ),
@@ -450,7 +454,7 @@ sub DelUnchangedFields {
     my $current_data = GetMember( borrowernumber => $borrowernumber );
 
     foreach my $key ( keys %new_data ) {
-        if ( $current_data->{$key} eq $new_data{$key} ) {
+        if ( defined $new_data{$key} && defined $current_data->{$key} && $current_data->{$key} eq $new_data{$key} ) {
             delete $new_data{$key};
         }
     }
@@ -466,6 +470,26 @@ sub DelEmptyFields {
     }
 
     return %borrower;
+}
+
+sub CheckExtendedAttributesChanges {
+    my ( $borrowernumber, $entered_attributes ) = @_;
+
+    my @patron_attributes = GetBorrowerAttributes($borrowernumber,1);
+    my $size_of_attributes = scalar @patron_attributes;
+    my $size_of_entered_attributes = scalar @{ $entered_attributes };
+
+    if ($size_of_attributes != $size_of_entered_attributes) {
+        return 1;
+    } else {
+        # foreach my $attr ( @patron_attributes ) {
+
+        # }
+        warn p($entered_attributes);
+        warn p(@patron_attributes);
+    }
+
+    return 0;
 }
 
 sub GeneratePatronAttributesForm {
@@ -538,9 +562,8 @@ sub ParsePatronAttributes {
 
     my @codes = $cgi->multi_param('patron_attribute_code');
     my @values = $cgi->multi_param('patron_attribute_value');
-    my @passwords = $cgi->multi_param('patron_attribute_password');
 
-    my $ea = each_array( @codes, @values, @passwords );
+    my $ea = each_array( @codes, @values );
     my @attributes;
     my %dups = ();
 
@@ -549,7 +572,7 @@ sub ParsePatronAttributes {
         next if exists $dups{$code}->{$value};
         $dups{$code}->{$value} = 1;
 
-        push @attributes, { code => $code, value => $value, password => $password };
+        push @attributes, { code => $code, value => $value };
     }
 
     return \@attributes;
