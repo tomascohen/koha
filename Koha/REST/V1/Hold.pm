@@ -28,7 +28,7 @@ use Koha::Holds;
 use Koha::DateUtils;
 
 sub list {
-    my ($c, $args, $cb) = @_;
+    my $c = shift->openapi->valid_input or return;
 
     my $params = $c->req->query_params->to_hash;
     my @valid_params = Koha::Holds->_resultset->result_source->columns;
@@ -37,11 +37,11 @@ sub list {
     }
     my $holds = Koha::Holds->search($params);
 
-    return $c->$cb($holds, 200);
+    return $c->render(status => 200, openapi => $holds);
 }
 
 sub add {
-    my ($c, $args, $cb) = @_;
+    my $c = shift->openapi->valid_input or return;
 
     my $body = $c->req->json;
 
@@ -52,18 +52,18 @@ sub add {
     my $expirationdate = $body->{expirationdate};
     my $borrower = Koha::Patrons->find($borrowernumber);
     unless ($borrower) {
-        return $c->$cb({error => "Borrower not found"}, 404);
+        return $c->render( status  => 404,
+                           openapi => {error => "Borrower not found"} );
     }
 
     unless ($biblionumber or $itemnumber) {
-        return $c->$cb({
+        return $c->render( status => 400, openapi => {
             error => "At least one of biblionumber, itemnumber should be given"
-        }, 400);
+        } );
     }
     unless ($branchcode) {
-        return $c->$cb({
-            error => "Branchcode is required"
-        }, 400);
+        return $c->render( status  => 400,
+                           openapi => { error => "Branchcode is required" } );
     }
 
     my $biblio;
@@ -71,9 +71,11 @@ sub add {
         my $item = Koha::Items->find( $itemnumber );
         $biblio = $item->biblio;
         if ($biblionumber and $biblionumber != $biblio->biblionumber) {
-            return $c->$cb({
-                error => "Item $itemnumber doesn't belong to biblio $biblionumber"
-            }, 400);
+            return $c->render(
+                status => 400,
+                openapi => {
+                    error => "Item $itemnumber doesn't belong to biblio $biblionumber"
+                });
         }
         $biblionumber ||= $biblio->biblionumber;
     } else {
@@ -86,9 +88,9 @@ sub add {
       : CanBookBeReserved( $borrowernumber, $biblionumber );
 
     unless ($can_reserve eq 'OK') {
-        return $c->$cb({
+        return $c->render( status => 403, openapi => {
             error => "Reserve cannot be placed. Reason: $can_reserve"
-        }, 403);
+        } );
     }
 
     my $priority = C4::Reserves::CalculatePriority($biblionumber);
@@ -104,24 +106,25 @@ sub add {
         $biblio->title, $itemnumber);
 
     unless ($reserve_id) {
-        return $c->$cb({
+        return $c->render( status => 500, openapi => {
             error => "Error while placing reserve. See Koha logs for details."
-        }, 500);
+        } );
     }
 
     my $reserve = Koha::Holds->find($reserve_id);
 
-    return $c->$cb($reserve, 201);
+    return $c->render( status => 201, openapi => $reserve );
 }
 
 sub edit {
-    my ($c, $args, $cb) = @_;
+    my $c = shift->openapi->valid_input or return;
 
-    my $reserve_id = $args->{reserve_id};
+    my $reserve_id = $c->validation->param('reserve_id');
     my $reserve = C4::Reserves::GetReserve($reserve_id);
 
     unless ($reserve) {
-        return $c->$cb({error => "Reserve not found"}, 404);
+        return $c->render( status  => 404,
+                           openapi => {error => "Reserve not found"} );
     }
 
     my $body = $c->req->json;
@@ -144,22 +147,22 @@ sub edit {
     C4::Reserves::ModReserve($params);
     $reserve = Koha::Holds->find($reserve_id);
 
-    return $c->$cb($reserve, 200);
+    return $c->render( status => 200, openapi => $reserve );
 }
 
 sub delete {
-    my ($c, $args, $cb) = @_;
+    my $c = shift->openapi->valid_input or return;
 
-    my $reserve_id = $args->{reserve_id};
+    my $reserve_id = $c->validation->param('reserve_id');
     my $reserve = C4::Reserves::GetReserve($reserve_id);
 
     unless ($reserve) {
-        return $c->$cb({error => "Reserve not found"}, 404);
+        return $c->render( status => 404, openapi => {error => "Reserve not found"} );
     }
 
     C4::Reserves::CancelReserve({ reserve_id => $reserve_id });
 
-    return $c->$cb({}, 200);
+    return $c->render( status => 200, openapi => {} );
 }
 
 1;
