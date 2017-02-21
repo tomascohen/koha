@@ -503,6 +503,21 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 illrequests
+
+Type: has_many
+
+Related object: L<Koha::Schema::Result::Illrequest>
+
+=cut
+
+__PACKAGE__->has_many(
+  "illrequests",
+  "Koha::Schema::Result::Illrequest",
+  { "foreign.branchcode" => "self.branchcode" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 items_holdingbranches
 
 Type: has_many
