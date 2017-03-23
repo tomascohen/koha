@@ -2,7 +2,7 @@
   "/acquisitions/vendors": {
     "get": {
       "x-mojo-controller": "Koha::REST::V1::Acquisitions::Vendors",
-      "operationId": "list",
+      "operationId": "listVendors",
       "tags": ["acquisitions","vendors"],
       "produces": [
         "application/json"
@@ -51,7 +51,7 @@
     },
     "post": {
       "x-mojo-controller": "Koha::REST::V1::Acquisitions::Vendors",
-      "operationId": "add",
+      "operationId": "addVendor",
       "tags": ["acquisitions","vendors"],
       "parameters": [{
         "name": "body",
@@ -95,7 +95,7 @@
   "/acquisitions/vendors/{vendor_id}": {
     "get": {
       "x-mojo-controller": "Koha::REST::V1::Acquisitions::Vendors",
-      "operationId": "get",
+      "operationId": "getVendor",
       "tags": ["acquisitions","vendors"],
       "parameters": [{
         "$ref": "../parameters.json#/vendoridPathParam"
@@ -137,7 +137,7 @@
     },
     "put": {
       "x-mojo-controller": "Koha::REST::V1::Acquisitions::Vendors",
-      "operationId": "update",
+      "operationId": "updateVendor",
       "tags": ["acquisitions","vendors"],
       "parameters": [{
         "$ref": "../parameters.json#/vendoridPathParam"
@@ -187,7 +187,7 @@
     },
     "delete": {
       "x-mojo-controller": "Koha::REST::V1::Acquisitions::Vendors",
-      "operationId": "delete",
+      "operationId": "deleteVendor",
       "tags": ["acquisitions","vendors"],
       "parameters": [{
         "$ref": "../parameters.json#/vendoridPathParam"

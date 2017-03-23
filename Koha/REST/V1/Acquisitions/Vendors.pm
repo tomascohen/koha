@@ -24,7 +24,7 @@ use Koha::Acquisition::Booksellers;
 
 use Try::Tiny;
 
-sub list {
+sub list_vendors {
     my ( $c, $args, $cb ) = @_;
 
     my @vendors;
@@ -43,7 +43,7 @@ sub list {
     };
 }
 
-sub get {
+sub get_vendor {
     my ( $c, $args, $cb ) = @_;
 
     my $vendor = Koha::Acquisition::Booksellers->find( $args->{vendor_id} );
@@ -54,7 +54,7 @@ sub get {
     return $c->$cb( _to_api($vendor), 200 );
 }
 
-sub add {
+sub add_vendor {
     my ( $c, $args, $cb ) = @_;
 
     my $vendor = Koha::Acquisition::Bookseller->new( _to_model( $args->{body} ) );
@@ -73,7 +73,7 @@ sub add {
     };
 }
 
-sub update {
+sub update_vendor {
     my ( $c, $args, $cb ) = @_;
 
     my $vendor;
@@ -98,7 +98,7 @@ sub update {
 
 }
 
-sub delete {
+sub delete_vendor {
     my ( $c, $args, $cb ) = @_;
 
     my $vendor;
