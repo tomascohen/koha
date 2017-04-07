@@ -19,14 +19,15 @@ use Modern::Perl;
 
 use POSIX qw(strftime);
 
-use Test::More tests => 49;
+use Test::More tests => 50;
 
 use t::lib::TestBuilder;
 
 use Koha::Database;
 use Koha::Biblio;
 use Koha::Patron;
-use Koha::Library;
+
+use t::lib::TestBuilder;
 
 BEGIN {
     use_ok('Koha::ArticleRequest');
@@ -69,9 +70,14 @@ my $patron   = Koha::Patron->new(
     {
         categorycode => $category->{categorycode},
         branchcode   => $branch->{branchcode},
+        flags        => 1,# superlibrarian
     }
 )->store();
 ok( $patron->id, 'Koha::Patron created' );
+my $patron_2 = $builder->build({ source => 'Borrower', value => { flags => 0 } });
+$patron_2 = Koha::Patrons->find( $patron_2->{borrowernumber} );
+
+my $nb_article_requests = Koha::ArticleRequests->count;
 
 my $article_request = Koha::ArticleRequest->new(
     {
@@ -177,4 +183,30 @@ ok( !$item->can_article_request($patron),   'Item is not requestable with rule t
 is( $item->article_request_type($patron), 'no', 'Item article request type is no' );
 $rule->delete();
 
+subtest 'search_limited' => sub {
+    plan tests => 4;
+    C4::Context->_new_userenv('xxx');
+    my $group_1 = Koha::Library::Group->new( { title => 'TEST Group 1' } )->store;
+    my $group_2 = Koha::Library::Group->new( { title => 'TEST Group 2' } )->store;
+    Koha::Library::Group->new({ parent_id => $group_1->id,  branchcode => $patron->branchcode })->store();
+    Koha::Library::Group->new({ parent_id => $group_2->id,  branchcode => $patron_2->branchcode })->store();
+    set_logged_in_user( $patron ); # Is superlibrarian
+    is( Koha::ArticleRequests->count, $nb_article_requests + 1, 'Koha::ArticleRequests should return all article requests' );
+    is( Koha::ArticleRequests->search_limited->count, $nb_article_requests + 1, 'Koha::ArticleRequests->search_limited should return all article requests for superlibrarian' );
+    set_logged_in_user( $patron_2 ); # Is restricted
+    is( Koha::ArticleRequests->count, $nb_article_requests + 1, 'Koha::ArticleRequests should return all article requests' );
+    is( Koha::ArticleRequests->search_limited->count, $nb_article_requests, 'Koha::ArticleRequests->search_limited should not return all article requests for restricted patron' );
+};
+
 $schema->storage->txn_rollback();
+
+sub set_logged_in_user {
+    my ($patron) = @_;
+    C4::Context->set_userenv(
+        $patron->borrowernumber, $patron->userid,
+        $patron->cardnumber,     'firstname',
+        'surname',               $patron->library->branchcode,
+        'Midway Public Library', $patron->flags,
+        '',                      ''
+    );
+}
