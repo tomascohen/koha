@@ -1,6 +1,7 @@
 package Koha::Patron::Modification;
 
 # Copyright ByWater Solutions 2014
+# Copyright Koha-Suomi Oy 2016
 #
 # This file is part of Koha.
 #
@@ -22,6 +23,9 @@ use Modern::Perl;
 use Carp;
 
 use Koha::Database;
+use Koha::Exceptions;
+use Koha::Patrons;
+
 use Koha::Exceptions::Patron::Modification;
 use Koha::Patron::Attribute;
 use Koha::Patron::Attributes;
@@ -68,6 +72,42 @@ sub store {
             Koha::Exceptions::Patron::Modification::InvalidData->throw(
                 'The passed extended_attributes is not valid JSON');
         };
+    }
+
+    my $patron = Koha::Patrons->find( $self->borrowernumber );
+    if ( $patron ) {
+        my %columns = map { $_ => 1 } Koha::Patrons->columns;
+
+        my $changes_made = 0;
+        foreach my $column ( keys %{$self->unblessed} ) {
+            if (exists $columns{$column}) {
+                if ($patron->$column ne $self->$column) {
+                    $changes_made = 1;
+                    last;
+                }
+                # Set the changes for patron without commiting - this will be used
+                # for validating the given parameters via Koha::Patron.
+                # Do not ->store the patron!
+                $patron->$column($self->$column);
+            }
+        }
+        my $extended_attributes = try { from_json( $self->extended_attributes ) };
+        if (!$changes_made && $extended_attributes) {
+            my %codes = map { $_->{code} => $_->{value} } @{$extended_attributes};
+            foreach my $code (keys %codes) {
+                delete $codes{$code} if Koha::Patron::Attributes->search({
+                        borrowernumber => $patron->borrowernumber,
+                        code           => $code,
+                        attribute      => $codes{$code}
+                    })->count > 0;
+            }
+            $changes_made = 1 if keys %codes > 0;
+        }
+        Koha::Exceptions::NoChanges->throw(
+            error => "No changes have been made",
+        ) unless $changes_made;
+        # Validate changes via Koha::Patron
+        $patron->_validate;
     }
 
     return $self->SUPER::store();
