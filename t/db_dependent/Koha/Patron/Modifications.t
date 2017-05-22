@@ -85,7 +85,7 @@ subtest 'new() tests' => sub {
 
 subtest 'store( extended_attributes ) tests' => sub {
 
-    plan tests => 4;
+    plan tests => 6;
 
     $schema->storage->txn_begin;
 
@@ -94,8 +94,14 @@ subtest 'store( extended_attributes ) tests' => sub {
     my $patron
         = $builder->build( { source => 'Borrower' } )->{borrowernumber};
     my $verification_token = md5_hex( time().{}.rand().{}.$$ );
-    my $valid_json_text    = '[{"code":"CODE","value":"VALUE"}]';
-    my $invalid_json_text  = '[{"code":"CODE";"value":"VALUE"}]';
+    $builder->build(
+        { source => 'BorrowerAttributeType', value => { code => 'CODE_1' } }
+    );
+    $builder->build(
+        { source => 'BorrowerAttributeType', value => { code => 'CODE_2' } }
+    );
+    my $valid_json_text    = '[{"code":"CODE_1","value":"VALUE"}]';
+    my $invalid_json_text  = '[{"code":"CODE_2";"value":"VALUE"}]';
 
     Koha::Patron::Modification->new(
         {   verification_token  => $verification_token,
@@ -129,6 +135,32 @@ subtest 'store( extended_attributes ) tests' => sub {
         'Trying to store invalid JSON in extended_attributes field raises exception';
 
     is( $@, 'The passed extended_attributes is not valid JSON' );
+
+    Koha::Patrons->find($patron)->surname('Hall')->store;
+    throws_ok {
+        Koha::Patron::Modification->new(
+            {   verification_token  => $verification_token,
+                borrowernumber      => $patron,
+                surname             => 'Hall',
+            }
+        )->store();
+    }
+    'Koha::Exceptions::NoChanges',
+        'Trying to create a modification request without changing anything'
+        .' raises exception';
+
+    $patron_modification->approve;
+    throws_ok {
+        Koha::Patron::Modification->new(
+            {   verification_token  => $verification_token,
+                borrowernumber      => $patron,
+                extended_attributes => $valid_json_text,
+            }
+        )->store();
+    }
+    'Koha::Exceptions::NoChanges',
+        'Trying to create a modification request without changing anything'
+        .' raises exception';
 
     $schema->storage->txn_rollback;
 };
