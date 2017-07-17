@@ -116,14 +116,15 @@ my $biblionumber2 = create_biblio('RESTful Web APIs');
 my $itemnumber2 = create_item($biblionumber2, 'TEST000002');
 
 $dbh->do('DELETE FROM reserves');
-$dbh->do('DELETE FROM circulation_rules');
+Koha::CirculationRules->search()->delete();
 Koha::CirculationRules->set_rules(
     {
         categorycode => '*',
         branchcode   => '*',
         itemtype     => '*',
         rules        => {
-            reservesallowed => 1
+            reservesallowed => 1,
+            holds_per_record => 99
         }
     }
 );
@@ -187,6 +188,7 @@ subtest "Test endpoints without permission" => sub {
     $t->request_ok($tx) # no permission
       ->status_is(403);
 };
+
 subtest "Test endpoints without permission, but accessing own object" => sub {
     plan tests => 15;
 
