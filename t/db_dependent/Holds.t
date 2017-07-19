@@ -7,7 +7,7 @@ use t::lib::TestBuilder;
 
 use C4::Context;
 
-use Test::More tests => 54;
+use Test::More tests => 55;
 use MARC::Record;
 use C4::Biblio;
 use C4::Items;
@@ -17,6 +17,8 @@ use Koha::Database;
 use Koha::DateUtils qw( dt_from_string output_pref );
 use Koha::Biblios;
 use Koha::Holds;
+use Koha::IssuingRules;
+use Koha::Items;
 use Koha::Patrons;
 
 BEGIN {
@@ -402,6 +404,105 @@ my $res_id = AddReserve( $branch_1, $borrowernumbers[0], $bibnum, '', 1, );
 is( CanItemBeReserved( $borrowernumbers[0], $itemnumber ),
     'tooManyReserves', 'Patron cannot reserve item with hold limit of 1, 1 bib level hold placed' );
 
+$schema->storage->txn_rollback;
+
+subtest 'CanItemBeReserved / holds_per_day tests' => sub {
+
+    plan tests => 9;
+
+    $schema->storage->txn_begin;
+
+    Koha::Holds->search->delete;
+    $dbh->do('DELETE FROM issues');
+    Koha::Items->search->delete;
+    Koha::Biblios->search->delete;
+
+    my $itemtype = $builder->build_object({ class => 'Koha::ItemTypes' });
+    my $library  = $builder->build_object({ class => 'Koha::Libraries' });
+    my $patron   = $builder->build_object({ class => 'Koha::Patrons' });
+    # Create 3 biblios with items
+    my ($bibnum_1) = create_helper_biblio( $itemtype->itemtype );
+    my ( undef, undef, $itemnumber_1 ) = AddItem(
+        {
+            homebranch    => $library->branchcode,
+            holdingbranch => $library->branchcode
+        },
+        $bibnum
+    );
+    my ($bibnum_2) = create_helper_biblio( $itemtype->itemtype );
+    my ( undef, undef, $itemnumber_2 ) = AddItem(
+        {
+            homebranch    => $library->branchcode,
+            holdingbranch => $library->branchcode
+        },
+        $bibnum_2
+    );
+    my ($bibnum_3) = create_helper_biblio( $itemtype->itemtype );
+    my ( undef, undef, $itemnumber_3 ) = AddItem(
+        {
+            homebranch    => $library->branchcode,
+            holdingbranch => $library->branchcode
+        },
+        $bibnum_3
+    );
+
+    Koha::IssuingRules->search->delete;
+    my $issuingrule = Koha::IssuingRule->new({
+        categorycode     => '*',
+        branchcode       => '*',
+        itemtype         => $itemtype->itemtype,
+        reservesallowed  => 1,
+        holds_per_record => 99,
+        holds_per_day    => 2 })->store;
+
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_1 ),
+        'OK', 'Patron can reserve item with hold limit of 1, no holds placed' );
+
+    AddReserve( $library->branchcode, $patron->borrowernumber, $bibnum_1, '', 1, );
+
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_1 ),
+        'tooManyReserves', 'Patron cannot reserve item with hold limit of 1, 1 bib level hold placed' );
+
+    # Raise reservesallowed to avoid tooManyReserves from it
+    $issuingrule->set({ reservesallowed => 3 })->store;
+
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_2 ),
+        'OK', 'Patron can reserve item with 2 reserves daily cap' );
+
+    # Add a second reserve
+    my $res_id = AddReserve( $library->branchcode, $patron->borrowernumber, $bibnum_2, '', 1, );
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_2 ),
+        'tooManyReservesToday', 'Patron cannot a third item with 2 reserves daily cap' );
+
+    # Update last hold so reservedate is in the past, so 2 holds, but different day
+    $hold = Koha::Holds->find( $res_id );
+    my $yesterday = dt_from_string() - DateTime::Duration->new( days => 1 ) ;
+    $hold->reservedate( $yesterday )->store;
+
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_2 ),
+        'OK', 'Patron can reserve item with 2 bib level hold placed on different days, 2 reserves daily cap' );
+
+    # Set holds_per_day to 0
+    $issuingrule->set({ holds_per_day => 0 })->store;
+    # Delete existing holds
+    Koha::Holds->search->delete;
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_2 ),
+        'tooManyReservesToday', 'Patron cannot reserve if holds_per_day is 0 (i.e. 0 is 0)' );
+
+    $issuingrule->set({ holds_per_day => undef })->store;
+    Koha::Holds->search->delete;
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_2 ),
+        'OK', 'Patron can reserve if holds_per_day is undef (i.e. undef is unlimited daily cap)' );
+    AddReserve( $library->branchcode, $patron->borrowernumber, $bibnum_1, '', 1, );
+    AddReserve( $library->branchcode, $patron->borrowernumber, $bibnum_2, '', 1, );
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_3 ),
+        'OK', 'Patron can reserve if holds_per_day is undef (i.e. undef is unlimited daily cap)' );
+    AddReserve( $library->branchcode, $patron->borrowernumber, $bibnum_3, '', 1, );
+    is( CanItemBeReserved( $patron->borrowernumber, $itemnumber_3 ),
+        'tooManyReserves', 'Unlimited daily holds, but reached reservesallowed' );
+
+    $schema->storage->txn_rollback;
+};
 
 # Helper method to set up a Biblio.
 sub create_helper_biblio {
