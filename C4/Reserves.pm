@@ -327,6 +327,7 @@ sub CanItemBeReserved {
     my $ruleitemtype;    # itemtype of the matching issuing rule
     my $allowedreserves  = 0; # Total number of holds allowed across all records
     my $holds_per_record = 1; # Total number of holds allowed for this one given record
+    my $holds_per_day    = 0; # Total number of holds allowed per day for the given patron
 
     # we retrieve borrowers and items informations #
     # item->{itype} will come for biblioitems if necessery
@@ -377,6 +378,7 @@ sub CanItemBeReserved {
         $ruleitemtype     = $rights->{itemtype};
         $allowedreserves  = $rights->{reservesallowed};
         $holds_per_record = $rights->{holds_per_record};
+        $holds_per_day    = $rights->{holds_per_day};
     }
     else {
         $ruleitemtype = '*';
@@ -393,6 +395,11 @@ sub CanItemBeReserved {
     if ( $holds->count() >= $holds_per_record ) {
         return "tooManyHoldsForThisRecord";
     }
+
+    my $today_holds = Koha::Holds->search({
+        borrowernumber => $borrowernumber
+        #reservedate    => 
+    });
 
     # we retrieve count
 
@@ -2345,7 +2352,7 @@ sub GetHoldRule {
 
     my $sth = $dbh->prepare(
         q{
-         SELECT categorycode, itemtype, branchcode, reservesallowed, holds_per_record
+         SELECT categorycode, itemtype, branchcode, reservesallowed, holds_per_record, holds_per_day
            FROM issuingrules
           WHERE (categorycode in (?,'*') )
             AND (itemtype IN (?,'*'))

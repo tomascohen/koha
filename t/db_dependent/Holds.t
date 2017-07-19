@@ -7,7 +7,7 @@ use t::lib::TestBuilder;
 
 use C4::Context;
 
-use Test::More tests => 58;
+use Test::More tests => 60;
 use MARC::Record;
 use C4::Biblio;
 use C4::Items;
@@ -449,10 +449,10 @@ $dbh->do('DELETE FROM biblio');
     = AddItem( { homebranch => $branch_1, holdingbranch => $branch_1 }, $bibnum );
 
 $dbh->do(
-    q{INSERT INTO issuingrules (categorycode, branchcode, itemtype, reservesallowed, holds_per_record)
-      VALUES (?, ?, ?, ?, ?)},
+    q{INSERT INTO issuingrules (categorycode, branchcode, itemtype, reservesallowed, holds_per_record, holds_per_day)
+      VALUES (?, ?, ?, ?, ?, ?)},
     {},
-    '*', '*', 'ONLY1', 1, 99
+    '*', '*', 'ONLY1', 1, 99, 2
 );
 is( CanItemBeReserved( $borrowernumbers[0], $itemnumber ),
     'OK', 'Patron can reserve item with hold limit of 1, no holds placed' );
@@ -462,6 +462,29 @@ my $res_id = AddReserve( $branch_1, $borrowernumbers[0], $bibnum, '', 1, );
 is( CanItemBeReserved( $borrowernumbers[0], $itemnumber ),
     'tooManyReserves', 'Patron cannot reserve item with hold limit of 1, 1 bib level hold placed' );
 
+# Add two more items
+my ( $bibnum_2, undef, $bibitemnum_2 ) = create_helper_biblio('ONLY1');
+my ( undef, undef, $itemnumber_2 )
+    = AddItem( { homebranch => $branch_1, holdingbranch => $branch_1 }, $bibnum_2 );
+my ( $bibnum_3, undef, $bibitemnum_3 ) = create_helper_biblio('ONLY1');
+my ( undef, undef, $itemnumber_3 )
+    = AddItem( { homebranch => $branch_1, holdingbranch => $branch_1 }, $bibnum_3 );
+# Raise reservesallowed to avoid tooManyReserves
+$dbh->do(q{
+    UPDATE issuingrules SET reservesallowed=3 WHERE itemtype='ONLY1'
+});
+
+is( CanItemBeReserved( $borrowernumbers[0], $itemnumber_2 ),
+    'OK', 'Patron can reserve item with hold limit of 1, 1 bib level hold placed, 2 reserves daily cap' );
+
+# Add a second reserve
+AddReserve( $branch_1, $borrowernumbers[0], $bibnum_2, '', 1, );
+is( CanItemBeReserved( $borrowernumbers[0], $itemnumber_2 ),
+    'tooManyReservesToday', 'Patron cannot reserve item with hold limit of 3, 2 bib level hold placed, 2 reserves daily cap' );
+
+use DDP;
+my $a_date = dt_from_string;
+p($a_date->date);
 
 # Helper method to set up a Biblio.
 sub create_helper_biblio {
