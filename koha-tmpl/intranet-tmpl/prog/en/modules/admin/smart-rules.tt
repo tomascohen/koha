@@ -187,7 +187,8 @@ $(document).ready(function() {
                 <th>Automatic renewal</th>
                 <th>No automatic renewal after</th>
                 <th>No automatic renewal after (hard limit)</th>
-                <th>Holds allowed (count)</th>
+                <th>Holds allowed (total)</th>
+                <th>Holds allowed (daily)</th>
                 <th>Holds per record (count)</th>
                 <th>On shelf holds allowed</th>
                 <th>Item level holds</th>
@@ -270,6 +271,7 @@ $(document).ready(function() {
                             <td>[% rule.no_auto_renewal_after %]</td>
                             <td>[% rule.no_auto_renewal_after_hard_limit %]</td>
 							<td>[% rule.reservesallowed %]</td>
+                            <td>[% rule.holds_per_day %]</td>
                                                         <td>[% rule.holds_per_record %]</td>
                                                         <td>
                                                             [% IF rule.onshelfholds == 1 %]
@@ -361,6 +363,7 @@ $(document).ready(function() {
                         <div class="hint">[% INCLUDE 'date-format.inc' %]</div>
                     </td>
                     <td><input type="text" name="reservesallowed" id="reservesallowed" size="2" /></td>
+                    <td><input type="text" name="holds_per_day" id="holds_per_day" size="2" /></td>
                     <td><input type="text" name="holds_per_record" id="holds_per_record" size="2" /></td>
                     <td>
                         <select name="onshelfholds" id="onshelfholds">
@@ -413,8 +416,9 @@ $(document).ready(function() {
                       <th>No renewal before</th>
                       <th>Automatic renewal</th>
                       <th>No automatic renewal after</th>
-                       <th>No automatic renewal after (hard limit)</th>
-                      <th>Holds allowed (count)</th>
+                      <th>No automatic renewal after (hard limit)</th>
+                      <th>Holds allowed (total)</th>
+                      <th>Holds allowed (daily)</th>
                       <th>Holds per record (count)</th>
                       <th>On shelf holds allowed</th>
                       <th>Item level holds</th>
