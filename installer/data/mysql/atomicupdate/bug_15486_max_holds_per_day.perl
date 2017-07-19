@@ -1,10 +1,10 @@
 $DBversion = "XXX";
 if ( CheckVersion($DBversion) ) {
 
-    if ( !column_exists( 'issuingrules', 'max_holds_per_day' ) ) {
+    if ( !column_exists( 'issuingrules', 'holds_per_day' ) ) {
         $dbh->do(q{
             ALTER TABLE `issuingrules`
-                ADD COLUMN `max_holds_per_day` SMALLINT(6) DEFAULT NULL
+                ADD COLUMN `holds_per_day` SMALLINT(6) DEFAULT NULL
                 AFTER `holds_per_record`
         });
     }
