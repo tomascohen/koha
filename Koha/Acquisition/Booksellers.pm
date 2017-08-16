@@ -13,14 +13,6 @@ use Koha::Acquisition::Bookseller;
 sub search {
     my ( $self, $params, $attributes ) = @_;
 
-
-    while ( my ( $field, $value ) = each %$params ) {
-        if ( $field eq 'name' ) {
-            # Use "like" if search on name
-            $params->{name} = { -like => "%$value%" };
-        }
-    }
-
     $attributes->{order_by} ||= { -asc => 'name' };
 
     return $self->SUPER::search( $params, $attributes );

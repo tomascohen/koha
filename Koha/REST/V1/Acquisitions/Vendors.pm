@@ -19,104 +19,128 @@ use Modern::Perl;
 
 use Mojo::Base 'Mojolicious::Controller';
 
-use Koha::Acquisition::Bookseller;
 use Koha::Acquisition::Booksellers;
 
 use Try::Tiny;
 
 sub list_vendors {
-    my ( $c, $args, $cb ) = @_;
+    my $c = shift->openapi->valid_input or return;
+
+    my $args = _to_model($c->req->params->to_hash);
+    my $filter;
+
+    for my $filter_param ( keys %$args ) {
+        $filter->{$filter_param} = { LIKE => $args->{$filter_param} . "%" }
+            if $args->{$filter_param};
+    }
 
     my @vendors;
 
     return try {
-        @vendors = map { _to_api($_) } Koha::Acquisition::Booksellers->search($args);
-        return $c->$cb( \@vendors, 200 );
+        @vendors = Koha::Acquisition::Booksellers->search($filter);
+        @vendors = map { _to_api($_->TO_JSON) } @vendors;
+        return $c->render( status  => 200,
+                           openapi => \@vendors );
     }
     catch {
         if ( $_->isa('DBIx::Class::Exception') ) {
-            return $c->$cb( { error => $_->{msg} }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => $_->{msg} } );
         }
         else {
-            return $c->$cb( { error => "Something went wrong, check the logs." }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => "Something went wrong, check the logs." } );
         }
     };
 }
 
 sub get_vendor {
-    my ( $c, $args, $cb ) = @_;
+    my $c = shift->openapi->valid_input or return;
 
-    my $vendor = Koha::Acquisition::Booksellers->find( $args->{vendor_id} );
+    my $vendor = Koha::Acquisition::Booksellers->find( $c->validation->param('vendor_id') );
     unless ($vendor) {
-        return $c->$cb( { error => "Vendor not found" }, 404 );
+        return $c->render( status  => 404,
+                           openapi => { error => "Vendor not found" } );
     }
 
-    return $c->$cb( _to_api($vendor), 200 );
+    return $c->render( status  => 200,
+                       _to_api($vendor->TO_JSON) );
 }
 
 sub add_vendor {
-    my ( $c, $args, $cb ) = @_;
+    my $c = shift->openapi->valid_input or return;
 
-    my $vendor = Koha::Acquisition::Bookseller->new( _to_model( $args->{body} ) );
+    my $vendor = Koha::Acquisition::Bookseller->new( _to_model( $c->validation->param('body') ) );
 
     return try {
         $vendor->store;
-        return $c->$cb( _to_api($vendor), 200 );
+        return $c->render( status  => 200,
+                           openapi => _to_api($vendor->TO_JSON) );
     }
     catch {
         if ( $_->isa('DBIx::Class::Exception') ) {
-            return $c->$cb( { error => $_->msg }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => $_->msg } );
         }
         else {
-            return $c->$cb( { error => "Something went wrong, check the logs." }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => "Something went wrong, check the logs." } );
         }
     };
 }
 
 sub update_vendor {
-    my ( $c, $args, $cb ) = @_;
+    my $c = shift->openapi->valid_input or return;
 
     my $vendor;
 
     return try {
-        $vendor = Koha::Acquisition::Booksellers->find( $args->{vendor_id} );
-        $vendor->set( _to_model( $args->{body} ) );
+        $vendor = Koha::Acquisition::Booksellers->find( $c->validation->param('vendor_id') );
+        $vendor->set( _to_model( $c->validation->param('body') ) );
         $vendor->store();
-        return $c->$cb( _to_api($vendor), 200 );
+        return $c->render( status  => 200,
+                           openapi => _to_api($vendor->TO_JSON) );
     }
     catch {
         if ( not defined $vendor ) {
-            return $c->$cb( { error => "Object not found" }, 404 );
+            return $c->render( status  => 404,
+                               openapi => { error => "Object not found" } );
         }
         elsif ( $_->isa('Koha::Exceptions::Object') ) {
-            return $c->$cb( { error => $_->message }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => $_->message } );
         }
         else {
-            return $c->$cb( { error => "Something went wrong, check the logs." }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => "Something went wrong, check the logs." } );
         }
     };
 
 }
 
 sub delete_vendor {
-    my ( $c, $args, $cb ) = @_;
+    my $c = shift->openapi->valid_input or return;
 
     my $vendor;
 
     return try {
-        $vendor = Koha::Acquisition::Booksellers->find( $args->{vendor_id} );
+        $vendor = Koha::Acquisition::Booksellers->find( $c->validation->param('vendor_id') );
         $vendor->delete;
-        return $c->$cb( q{}, 200 );
+        return $c->render( status => 200,
+                           openapi => q{} );
     }
     catch {
         if ( not defined $vendor ) {
-            return $c->$cb( { error => "Object not found" }, 404 );
+            return $c->render( status  => 404,
+                               openapi => { error => "Object not found" } );
         }
         elsif ( $_->isa('DBIx::Class::Exception') ) {
-            return $c->$cb( { error => $_->msg }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => $_->msg } );
         }
         else {
-            return $c->$cb( { error => "Something went wrong, check the logs." }, 500 );
+            return $c->render( status  => 500,
+                               openapi => { error => "Something went wrong, check the logs." } );
         }
     };
 
@@ -124,9 +148,9 @@ sub delete_vendor {
 
 sub _to_api {
 
-    my $vendor_param = shift;
+    my $vendor = shift;
 
-    my $vendor = $vendor_param->TO_JSON;
+    #my $vendor = $vendor_param->TO_JSON;
 
     # Delete unused fields
     delete $vendor->{booksellerfax};

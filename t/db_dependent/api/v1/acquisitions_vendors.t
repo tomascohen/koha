@@ -44,6 +44,7 @@ subtest 'list() and delete() tests | authorized user' => sub {
 
     $schema->storage->txn_begin;
 
+    $schema->resultset('Aqbasket')->search->delete;
     Koha::Acquisition::Booksellers->search->delete;
     my ( $borrowernumber, $session_id )
         = create_user_and_session( { authorized => 1 } );
@@ -58,7 +59,7 @@ subtest 'list() and delete() tests | authorized user' => sub {
       ->json_is( [] );
 
     my $vendor_name = 'Ruben libros';
-    my $vendor = $builder->build( { source => 'Aqbookseller', value => { name => $vendor_name } } );
+    my $vendor = $builder->build_object({ class => 'Koha::Acquisition::Booksellers', value => { name => $vendor_name } });
 
     # One vendor created, should get returned
     $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors' );
@@ -70,7 +71,7 @@ subtest 'list() and delete() tests | authorized user' => sub {
 
     my $other_vendor_name = 'Amerindia';
     my $other_vendor
-        = $builder->build( { source => 'Aqbookseller', value => { name => $other_vendor_name } } );
+        = $builder->build_object({ class => 'Koha::Acquisition::Booksellers', value => { name => $other_vendor_name } });
 
     $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors' );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
@@ -94,26 +95,26 @@ subtest 'list() and delete() tests | authorized user' => sub {
       ->status_is(200)
       ->json_like( '/0/name' => qr/Amerindia/ );
 
-    $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors?accountnumber=' . $vendor->{accountnumber} );
+    $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors?accountnumber=' . $vendor->accountnumber );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
     $tx->req->env( { REMOTE_ADDR => $remote_address } );
     $t->request_ok($tx)
       ->status_is(200)
       ->json_like( '/0/name' => qr/Ruben/ );
 
-    $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors?accountnumber=' . $other_vendor->{accountnumber} );
+    $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors?accountnumber=' . $other_vendor->accountnumber );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
     $tx->req->env( { REMOTE_ADDR => $remote_address } );
     $t->request_ok($tx)
       ->status_is(200)
       ->json_like( '/0/name' => qr/Amerindia/ );
 
-    $tx = $t->ua->build_tx( DELETE => '/api/v1/acquisitions/vendors/' . $vendor->{id} );
+    $tx = $t->ua->build_tx( DELETE => '/api/v1/acquisitions/vendors/' . $vendor->id );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
     $tx->req->env( { REMOTE_ADDR => $remote_address } );
     $t->request_ok($tx)
       ->status_is(200)
-      ->content_is(q{});
+      ->content_is(q{""});
 
     $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors' );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
@@ -123,12 +124,12 @@ subtest 'list() and delete() tests | authorized user' => sub {
       ->json_like( '/0/name' => qr/$other_vendor_name/ )
       ->json_hasnt( '/1', 'Only one vendor' );
 
-    $tx = $t->ua->build_tx( DELETE => '/api/v1/acquisitions/vendors/' . $other_vendor->{id} );
+    $tx = $t->ua->build_tx( DELETE => '/api/v1/acquisitions/vendors/' . $other_vendor->id );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
     $tx->req->env( { REMOTE_ADDR => $remote_address } );
     $t->request_ok($tx)
       ->status_is(200)
-      ->content_is(q{});
+      ->content_is(q{""});
 
     $tx = $t->ua->build_tx( GET => '/api/v1/acquisitions/vendors' );
     $tx->req->cookies( { name => 'CGISESSID', value => $session_id } );
@@ -146,8 +147,7 @@ subtest 'get() test' => sub {
 
     $schema->storage->txn_begin;
 
-    my $vendor = Koha::Acquisition::Booksellers->find(
-        $builder->build( { source => 'Aqbookseller' } )->{id} );
+    my $vendor = $builder->build_object({ class => 'Koha::Acquisition::Booksellers' });
     my ( $borrowernumber, $session_id )
         = create_user_and_session( { authorized => 1 } );
 
@@ -156,7 +156,9 @@ subtest 'get() test' => sub {
     $tx->req->env( { REMOTE_ADDR => $remote_address } );
     $t->request_ok($tx)
       ->status_is(200)
-      ->json_is( Koha::REST::V1::Acquisitions::Vendors::_to_api($vendor) );
+      ->json_is( $vendor->TO_JSON );
+    use Data::Printer colored => 1;
+    p($tx->res);
 
     my $non_existent_id = $vendor->id + 1;
     $tx = $t->ua->build_tx( GET => "/api/v1/acquisitions/vendors/" . $non_existent_id );
@@ -364,7 +366,7 @@ subtest 'delete() tests' => sub {
     $tx->req->env( { REMOTE_ADDR => $remote_address } );
     $t->request_ok($tx)
       ->status_is(200)
-      ->content_is('');
+      ->content_is(q{""});
 
     $tx = $t->ua->build_tx( DELETE => "/api/v1/acquisitions/vendors/$vendor_id" );
     $tx->req->cookies( { name => 'CGISESSID', value => $authorized_session_id } );
