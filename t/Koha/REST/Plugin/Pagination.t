@@ -53,9 +53,9 @@ get '/pagination_headers_last_page' => sub {
 
 get '/dbic_merge_pagination' => sub {
     my $c = shift;
-    my $filter = { firstname => 'Kyle', surname => 'Hall' };
-    $filter = $c->dbic_merge_pagination({ filter => $filter, params => { _page => 1, _per_page => 3 } });
-    $c->render( json => $filter, status => 200 );
+    my $attributes = { firstname => 'Kyle', surname => 'Hall' };
+    $attributes = $c->dbic_merge_pagination({ attributes => $attributes, params => { _page => 1, _per_page => 3 } });
+    $c->render( json => $attributes, status => 200 );
 };
 
 # The tests

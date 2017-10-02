@@ -110,27 +110,28 @@ It also adds X-Total-Count, containing the total results count.
 
 =head3 dbic_merge_pagination
 
-    $filter = $c->dbic_merge_pagination({
-        filter => $filter,
+    $attributes = $c->dbic_merge_pagination({
+        attributes => $attributes,
         params => {
             page     => $params->{_page},
-            per_page => $params->{_per_page}
+            per_page => $params->{_per_page},
+            ...
         }
     });
 
-Adds I<page> and I<rows> elements to the filter parameter.
+Adds I<page> and I<rows> elements to the I<attributes> parameter.
 
 =cut
 
     $app->helper(
         'dbic_merge_pagination' => sub {
             my ( $c, $args ) = @_;
-            my $filter = $args->{filter};
+            my $attributes = $args->{attributes};
 
-            $filter->{page} = $args->{params}->{_page};
-            $filter->{rows} = $args->{params}->{_per_page};
+            $attributes->{page} = $args->{params}->{_page};
+            $attributes->{rows} = $args->{params}->{_per_page};
 
-            return $filter;
+            return $attributes;
         }
     );
 }
