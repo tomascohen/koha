@@ -628,6 +628,9 @@ __PACKAGE__->many_to_many("borrowernumbers", "aqorder_users", "borrowernumber");
 # Created by DBIx::Class::Schema::Loader v0.07042 @ 2016-10-28 15:05:37
 # DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:FyZsBWGJ8wsPkFdYUAetmg
 
+__PACKAGE__->add_columns(
+    '+uncertainprice' => { is_boolean => 1 }
+);
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;
