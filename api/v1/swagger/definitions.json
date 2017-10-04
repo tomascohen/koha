@@ -11,6 +11,9 @@
   "holds": {
     "$ref": "definitions/holds.json"
   },
+  "order": {
+    "$ref": "definitions/order.json"
+  },
   "patron": {
     "$ref": "definitions/patron.json"
   },

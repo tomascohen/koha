@@ -1,0 +1,334 @@
+{
+  "type": "object",
+  "properties": {
+    "ordernumber": {
+      "type": "integer",
+      "description": "Internally assigned order identifier"
+    },
+    "biblionumber": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Identifier for the linked bibliographic record"
+    },
+    "entrydate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Date the bib was added to the basket"
+    },
+    "quantity": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Ordered quantity"
+    },
+    "currency": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Currency used for the purchase"
+    },
+    "listprice": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Vendor price for the line item"
+    },
+    "datereceived": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Date the order was received"
+    },
+    "invoiceid": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Id of the order invoice"
+    },
+    "freight": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Shipping costs (TODO: unused?)"
+    },
+    "unitprice": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "The actual cost entered when receiving this line item"
+    },
+    "unitprice_tax_excluded": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Unit price excluding tax (on receiving)"
+    },
+    "unitprice_tax_included": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Unit price including tax (on receiving)"
+    },
+    "quantityreceived": {
+      "type": "integer",
+      "description": "Quantity received so far"
+    },
+    "datecancellationprinted": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Date the line item was deleted"
+    },
+    "cancellationreason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Reason of cancellation"
+    },
+    "order_internalnote": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Notes related to this order line, made for staff"
+    },
+    "order_vendornote": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Notes related to this order line, made for vendor"
+    },
+    "purchaseordernumber": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "(deprecated)"
+    },
+    "basketno": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Basket this order is linked to"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Date and time this order line was last modified"
+    },
+    "rrp": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Replacement cost for this item"
+    },
+    "rrp_tax_excluded": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Replacement cost for this item (tax excluded)"
+    },
+    "rrp_tax_included": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Replacement cost for this item (tax included)"
+    },
+    "ecost": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Effective cost"
+    },
+    "ecost_tax_excluded": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Effective cost (tax excluded)"
+    },
+    "ecost_tax_included": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Effective cost (tax included)"
+    },
+    "tax_rate_bak": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Tax rate (%)"
+    },
+    "tax_rate_on_ordering": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Tax rate on ordering (%)"
+    },
+    "tax_rate_on_receiving": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Tax rate on receiving (%)"
+    },
+    "tax_value_bak": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Tax value"
+    },
+    "tax_value_on_ordering": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Tax value on ordering"
+    },
+    "tax_value_on_receiving": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Tax value on receiving"
+    },
+    "discount": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Discount"
+    },
+    "budget_id": {
+      "type": "integer",
+      "description": "The ID for the budget this order goes against"
+    },
+    "budgetdate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Unused"
+    },
+    "sort1": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Statistical field"
+    },
+    "sort2": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Statistical field (2)"
+    },
+    "sort1_authcat": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Statistical category for this order"
+    },
+    "sort2_authcat": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Statistical category for this order (2)"
+    },
+    "uncertainprice": {
+      "type": "boolean",
+      "description": "If this price was uncertain"
+    },
+    "claims_count": {
+      "type": "integer",
+      "description": "Generated claim letters count"
+    },
+    "claimed_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Last date a claim letter was generated"
+    },
+    "subscriptionid": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Subscription ID linking the order to a subscription"
+    },
+    "parent_ordernumber": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "ordernumber of parent order line if exists"
+    },
+    "orderstatus": {
+      "type": "string",
+      "enum": [
+        "new",
+        "ordered",
+        "partial",
+        "complete",
+        "cancelled"
+      ],
+      "description": "The current status"
+    },
+    "line_item_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Supplier's article id for Edifact orderline"
+    },
+    "suppliers_reference_number": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Suppliers unique edifact quote reference number"
+    },
+    "suppliers_reference_qualifier": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Type of reference number usually 'QLI'"
+    },
+    "suppliers_report": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Reports received from supplier"
+    }
+  }
+}

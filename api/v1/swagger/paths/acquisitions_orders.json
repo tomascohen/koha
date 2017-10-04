@@ -1,0 +1,324 @@
+{
+  "/acquisitions/orders": {
+    "get": {
+      "x-mojo-to": "Acquisitions::Orders#list_orders",
+      "operationId": "listOrders",
+      "tags": ["acquisitions","orders"],
+      "produces": [
+        "application/json"
+      ],
+      "parameters": [{
+        "name": "biblionumber",
+        "in": "query",
+        "description": "Identifier for a linked bibliographic record",
+        "required": false,
+        "type": "integer"
+      }, {
+        "name": "basketno",
+        "in": "query",
+        "description": "Identifier for a linked acquisition basket",
+        "required": false,
+        "type": "integer"
+      }, {
+        "name": "budget_id",
+        "in": "query",
+        "description": "Identifier for the budget the order goes against",
+        "required": false,
+        "type": "integer"
+      }, {
+        "name": "orderstatus",
+        "in": "query",
+        "description": "Current status for the order. Can be 'new', 'ordered', 'partial', 'complete' or 'cancelled'",
+        "required": false,
+        "type": "string"
+      }, {
+        "$ref": "../parameters.json#/match"
+      }, {
+        "$ref": "../parameters.json#/order_by"
+      }, {
+        "$ref": "../parameters.json#/page"
+      }, {
+        "$ref": "../parameters.json#/per_page"
+      }],
+      "responses": {
+        "200": {
+          "description": "A list of orders",
+          "schema": {
+            "type": "array",
+            "items": {
+              "$ref": "../definitions.json#/order"
+            }
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "403": {
+          "description": "Access forbidden",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "404": {
+          "description": "Vendor not found",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "503": {
+          "description": "Under maintenance",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        }
+      },
+      "x-koha-authorization": {
+        "permissions": {
+          "acquisition": "order_manage",
+          "acquisition": "order_manage_all"
+        }
+      }
+    },
+    "post": {
+      "x-mojo-to": "Acquisitions::Orders#add_order",
+      "operationId": "addOrder",
+      "tags": ["acquisitions","orders"],
+      "parameters": [{
+        "name": "body",
+        "in": "body",
+        "description": "A JSON object representing an order",
+        "required": true,
+        "schema": {
+          "$ref": "../definitions.json#/order"
+        }
+      }],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "Vendor added",
+          "schema": {
+            "$ref": "../definitions.json#/order"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "403": {
+          "description": "Access forbidden",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "404": {
+          "description": "Vendor not found",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "503": {
+          "description": "Under maintenance",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        }
+      },
+      "x-koha-authorization": {
+        "permissions": {
+          "acquisition": "vendors_manage"
+        }
+      }
+    }
+  },
+  "/acquisitions/orders/{ordernumber}": {
+    "get": {
+      "x-mojo-to": "Acquisitions::Orders#get_order",
+      "operationId": "getOrder",
+      "tags": ["acquisitions","vendors"],
+      "parameters": [{
+        "$ref": "../parameters.json#/vendoridPathParam"
+      }],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A vendor",
+          "schema": {
+            "$ref": "../definitions.json#/vendor"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "403": {
+          "description": "Access forbidden",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "404": {
+          "description": "Vendor not found",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "503": {
+          "description": "Under maintenance",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        }
+      },
+      "x-koha-authorization": {
+        "permissions": {
+          "acquisition": "vendors_manage"
+        }
+      }
+    },
+    "put": {
+      "x-mojo-to": "Acquisitions::Orders#update_order",
+      "operationId": "updateOrder",
+      "tags": ["acquisitions","vendors"],
+      "parameters": [{
+        "$ref": "../parameters.json#/vendoridPathParam"
+      }, {
+        "name": "body",
+        "in": "body",
+        "description": "A JSON object representing a vendor",
+        "required": true,
+        "schema": {
+          "$ref": "../definitions.json#/vendor"
+        }
+      }],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A vendor",
+          "schema": {
+            "$ref": "../definitions.json#/vendor"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "403": {
+          "description": "Access forbidden",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "404": {
+          "description": "Vendor not found",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "503": {
+          "description": "Under maintenance",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        }
+      },
+      "x-koha-authorization": {
+        "permissions": {
+          "acquisition": "vendors_manage"
+        }
+      }
+    },
+    "delete": {
+      "x-mojo-to": "Acquisitions::Orders#delete_order",
+      "operationId": "deleteOrder",
+      "tags": ["acquisitions","vendors"],
+      "parameters": [{
+        "$ref": "../parameters.json#/vendoridPathParam"
+      }],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "Vendor deleted",
+          "schema": {
+            "type": "string"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "403": {
+          "description": "Access forbidden",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "404": {
+          "description": "Vendor not found",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        },
+        "503": {
+          "description": "Under maintenance",
+          "schema": {
+            "$ref": "../definitions.json#/error"
+          }
+        }
+      },
+      "x-koha-authorization": {
+        "permissions": {
+          "acquisition": "vendors_manage"
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,10 @@
 {
+  "/acquisitions/orders": {
+    "$ref": "paths/acquisitions_orders.json#/~1acquisitions~1orders"
+  },
+  "/acquisitions/orders/{ordernumber}": {
+    "$ref": "paths/acquisitions_orders.json#/~1acquisitions~1orders~1{ordernumber}"
+  },
   "/acquisitions/vendors": {
     "$ref": "paths/acquisitions_vendors.json#/~1acquisitions~1vendors"
   },
