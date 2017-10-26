@@ -354,7 +354,7 @@ sub CanItemBeReserved {
         $ruleitemtype     = $rights->{itemtype};
         $allowedreserves  = $rights->{reservesallowed};
         $holds_per_record = $rights->{holds_per_record};
-        $holds_per_day    = $rights->{holds_per_day} // 0;
+        $holds_per_day    = $rights->{holds_per_day};
     }
     else {
         $ruleitemtype = '*';
@@ -377,8 +377,10 @@ sub CanItemBeReserved {
         reservedate    => dt_from_string->date
     });
 
-    if (    $holds_per_day > 0
-         && $today_holds->count() >= $holds_per_day ) {
+    if ( defined $holds_per_day &&
+          (   ( $holds_per_day > 0 && $today_holds->count() >= $holds_per_day )
+           or ( $holds_per_day == 0 ) )
+        )  {
         return "tooManyReservesToday";
     }
 
