@@ -22,6 +22,7 @@ use base qw(Class::Accessor);
 use C4::Context;
 
 use Koha::Database;
+use Koha::Exceptions::Config;
 use Koha::SearchFields;
 use Koha::SearchMarcMaps;
 
@@ -477,6 +478,67 @@ sub process_error {
     return "Unable to understand your search query, please rephrase and try again.\n" if $msg =~ /ParseException/;
 
     return "Unable to perform your search. Please try again.\n";
+}
+
+#=head2 _build_index_name (internal)
+#
+#    my $index_name = _build_index_name( $index );
+#
+#Given I<$index>, it returns the string to be used as index name
+#    
+#=cut
+#
+#sub _build_index_name {
+#    my $index = shift;
+#
+#    my $index_name;
+#    
+#    return $index_name;
+#}
+
+=head2 status
+
+    my $status =  Koha::Search::Elasticsearch
+
+This static method returns a hash structure containing the used Elasticsearch
+configuration, and information on the defined indices and indexed documents.
+
+=cut
+
+sub status {
+
+    my $status;
+
+    my $conf = { %{ C4::Context->config('elasticsearch') } };
+    Koha::Exceptions::Config->throw("Missing 'elasticsearch' block in config file")
+        unless defined $conf;
+
+    my $nodes = $conf->{server};
+    if ( ref($nodes) eq 'ARRAY' ) {
+        $status->{nodes} = $nodes;
+    }
+    elsif ($nodes) {
+        $status->{nodes} = [$nodes];
+    }
+    else {
+        Koha::Exceptions::Config->throw("Missing 'server' entry in config file for elasticsearch");
+    }
+
+    if ( !defined $conf->{index_name} ) {
+        Koha::Exceptions::Config->throw("Missing 'index_name' entry in config file for elasticsearch");
+    }
+
+    my $biblios_index_name     = $conf->{index_name} . "_$BIBLIOS_INDEX" ;
+    my $authorities_index_name = $conf->{index_name} . "_$AUTHORITIES_INDEX" ;
+
+    my $es = Search::Elasticsearch->new({ nodes => $status->{nodes} });
+    
+    $status->{indexes} = [
+        { index_name => $biblios_index_name, count => $es->indices->stats( index => $biblios_index_name )->{_all}{primaries}{docs}{count} },
+        { index_name => $authorities_index_name, count => $es->indices->stats( index => $authorities_index_name )->{_all}{primaries}{docs}{count} }
+    ];
+    
+    return $status;
 }
 
 1;
