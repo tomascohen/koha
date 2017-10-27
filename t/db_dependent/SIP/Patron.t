@@ -4,9 +4,11 @@
 # This needs to be extended! Your help is appreciated..
 
 use Modern::Perl;
-use Test::More tests => 3;
+use Test::More tests => 4;
 
 use Koha::Database;
+use Koha::Patrons;
+use Koha::DateUtils;
 use t::lib::TestBuilder;
 use t::lib::Mocks;
 use C4::SIP::ILS::Patron;
@@ -69,6 +71,30 @@ subtest "OverduesBlockCirc tests" => sub {
     is( $odue_sip_patron->{charge_ok}, '', "Blocked with overdues when set to 'Block'");
     $odue_sip_patron = C4::SIP::ILS::Patron->new( $good_patron->{cardnumber} );
     is( $odue_sip_patron->{charge_ok}, 1, "Not blocked without overdues when set to 'Block'");
+
+};
+
+subtest "update_lastseen tests" => sub {
+    plan tests => 2;
+
+    my $seen_patron = $builder->build(
+        {
+            source => 'Borrower',
+            value  => {
+                lastseen    => "2001-01-01",
+            }
+        }
+    );
+    my $sip_patron = C4::SIP::ILS::Patron->new( $seen_patron->{cardnumber} );
+    t::lib::Mocks::mock_preference( 'TrackLastPatronActivity', '' );
+    $sip_patron->update_lastseen();
+    $seen_patron = Koha::Patrons->find({ cardnumber => $seen_patron->{cardnumber} });
+    is( output_pref({str => $seen_patron->lastseen(), dateonly => 1}), output_pref({str => '2001-01-01', dateonly => 1}),'Last seen not updated if not tracking patrons');
+    t::lib::Mocks::mock_preference( 'TrackLastPatronActivity', '1' );
+    $sip_patron->update_lastseen();
+    $seen_patron = Koha::Patrons->find({ cardnumber => $seen_patron->cardnumber() });
+    is( output_pref({str => $seen_patron->lastseen(), dateonly => 1}), output_pref({dt => dt_from_string(), dateonly => 1}),'Last seen updated to today if tracking patrons');
+
 
 };
 
