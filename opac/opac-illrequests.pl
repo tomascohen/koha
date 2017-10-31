@@ -24,6 +24,7 @@ use C4::Auth;
 use C4::Koha;
 use C4::Output;
 
+use Koha::Illrequest::Config;
 use Koha::Illrequests;
 use Koha::Libraries;
 use Koha::Patrons;

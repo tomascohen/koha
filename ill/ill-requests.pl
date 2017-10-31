@@ -50,6 +50,15 @@ my ( $template, $patronnumber, $cookie ) = get_template_and_user( {
     flagsrequired => { ill => '*' },
 } );
 
+# Are we able to actually work?
+my $backends = Koha::Illrequest::Config->new->available_backends;
+my $available_backends = ( scalar @{$backends} > 0 );
+$template->param( backends_available => $available_backends );
+if ( $available_backends ) {
+    output_html_with_http_headers( $cgi, $cookie, $template->output );
+    exit;
+}
+
 if ( $op eq 'illview' ) {
     # View the details of an ILL
     my $request = Koha::Illrequests->find($params->{illrequest_id});
@@ -223,15 +232,12 @@ if ( $op eq 'illview' ) {
     handle_commit_maybe($backend_result, $request);
 }
 
-# Get a list of backends
-my $ir = Koha::Illrequest->new;
-
 $template->param(
-    backends    => $ir->available_backends,
-    media       => [ "Book", "Article", "Journal" ],
-    query_type  => $op,
-    branches    => Koha::Libraries->search->unblessed,
-    here_link   => "/cgi-bin/koha/ill/ill-requests.pl"
+    backends           => $backends,
+    media              => [ "Book", "Article", "Journal" ],
+    query_type         => $op,
+    branches           => Koha::Libraries->search,
+    here_link          => "/cgi-bin/koha/ill/ill-requests.pl"
 );
 
 output_html_with_http_headers( $cgi, $cookie, $template->output );
