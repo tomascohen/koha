@@ -1,14 +1,22 @@
-#
-# ILS::Patron.pm
-# 
-# A Class for hiding the ILS's concept of the patron from the OpenSIP
-# system
-#
-
 package C4::SIP::ILS::Patron;
 
-use strict;
-use warnings;
+# This file is part of Koha.
+#
+# Koha is free software; you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+#
+# Koha is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Koha; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+use Modern::Perl;
+
 use Exporter;
 use Carp;
 
@@ -26,7 +34,23 @@ use C4::Auth qw(checkpw);
 use Koha::Libraries;
 use Koha::Patrons;
 
+=head1 NAME
+
+C4::SIP::ILS::Patron - A Class for hiding the ILS's concept of the patron from the OpenSIP system
+
+=cut
+
 our $kp;    # koha patron
+
+=head1 API
+
+=head2 Class Methods
+
+=head3 new
+
+    TODO
+
+=cut
 
 sub new {
     my ($class, $patron_id) = @_;
@@ -169,9 +193,21 @@ my %fields = (
 
 our $AUTOLOAD;
 
+=head3 DESTROY
+
+    TODO
+
+=cut
+
 sub DESTROY {
     # be cool.  needed for AUTOLOAD(?)
 }
+
+=head3 AUTOLOAD
+
+    TODO
+
+=cut
 
 sub AUTOLOAD {
     my $self = shift;
@@ -191,6 +227,12 @@ sub AUTOLOAD {
         return $self->{$name};
     }
 }
+
+=head3 name
+
+    TODO
+
+=cut
 
 sub name {
     my ( $self, $template ) = @_;
@@ -212,6 +254,12 @@ sub name {
     }
 }
 
+=head3 check_password
+
+    TODO
+
+=cut
+
 sub check_password {
     my ( $self, $pwd ) = @_;
 
@@ -227,7 +275,14 @@ sub check_password {
     return $ret;
 }
 
-# A few special cases, not in AUTOLOADed %fields
+=head2 A few special cases, not in AUTOLOADed %fields
+
+=head3 fee_amount
+
+    TODO
+
+=cut
+
 sub fee_amount {
     my $self = shift;
     if ( $self->{fines} ) {
@@ -236,25 +291,47 @@ sub fee_amount {
     return;
 }
 
+=head3 fines_amount
+
+    TODO
+
+=cut
+
 sub fines_amount {
     my $self = shift;
     return $self->fee_amount;
 }
+
+=head3 language
+
+    TODO
+
+=cut
 
 sub language {
     my $self = shift;
     return $self->{language} || '000'; # Unspecified
 }
 
+=head3 expired
+
+    TODO
+
+=cut
+
 sub expired {
     my $self = shift;
     return $self->{expired};
 }
 
-#
-# remove the hold on item item_id from my hold queue.
-# return true if I was holding the item, false otherwise.
-# 
+
+=head3 fee_amount
+
+Remove the hold on item item_id from my hold queue.
+Return true if I was holding the item, false otherwise.
+
+=cut
+
 sub drop_hold {
     my ($self, $item_id) = @_;
     return if !$item_id;
@@ -272,9 +349,13 @@ sub drop_hold {
     return $result;
 }
 
-# Accessor method for array_ref values, designed to get the "start" and "end" values
-# from the SIP request.  Note those incoming values are 1-indexed, not 0-indexed.
-#
+=head3 x_items
+
+Accessor method for array_ref values, designed to get the "start" and "end" values
+from the SIP request.  Note those incoming values are 1-indexed, not 0-indexed.
+
+=cut
+
 sub x_items {
     my $self      = shift;
     my $array_var = shift or return;
@@ -300,9 +381,12 @@ sub x_items {
     return $item_list;
 }
 
-#
-# List of outstanding holds placed
-#
+=head3 holds_items
+
+List of outstanding holds placed
+
+=cut
+
 sub hold_items {
     my $self = shift;
     my $item_arr = $self->x_items('hold_items', @_);
@@ -312,14 +396,34 @@ sub hold_items {
     return $item_arr;
 }
 
+=head3 overdue_items
+
+    TODO
+
+=cut
+
 sub overdue_items {
     my $self = shift;
     return $self->x_items('overdue_items', @_);
 }
+
+=head3 charged_items
+
+    TODO
+
+=cut
+
 sub charged_items {
     my $self = shift;
     return $self->x_items('items', @_);
 }
+
+=head3 fine_items
+
+    TODO
+
+=cut
+
 sub fine_items {
     require Koha::Database;
     require Template;
@@ -355,14 +459,34 @@ sub fine_items {
 
     return \@return_values;
 }
+
+=head3 recall_items
+
+    TODO
+
+=cut
+
 sub recall_items {
     my $self = shift;
     return $self->x_items('recall_items', @_);
 }
+
+=head3 unavail_holds
+
+    TODO
+
+=cut
+
 sub unavail_holds {
     my $self = shift;
     return $self->x_items('unavail_holds', @_);
 }
+
+=head3 block
+
+    TODO
+
+=cut
 
 sub block {
     my ($self, $card_retained, $blocked_card_msg) = @_;
@@ -373,6 +497,12 @@ sub block {
     # TODO: not really affecting patron record
     return $self;
 }
+
+=head3 enable
+
+    TODO
+
+=cut
 
 sub enable {
     my $self = shift;
@@ -386,31 +516,67 @@ sub enable {
     return $self;
 }
 
+=head3 inet_privileges
+
+    TODO
+
+=cut
+
 sub inet_privileges {
     my $self = shift;
     return $self->{inet} ? 'Y' : 'N';
 }
 
+=head3 _fee_limit
+
+    TODO
+
+=cut
+
 sub _fee_limit {
     return C4::Context->preference('noissuescharge') || 5;
 }
+
+=head3 excessive_fees
+
+    TODO
+
+=cut
 
 sub excessive_fees {
     my $self = shift;
     return ($self->fee_amount and $self->fee_amount > $self->fee_limit);
 }
 
+=head3 excessive_fines
+
+    TODO
+
+=cut
+
 sub excessive_fines {
     my $self = shift;
     return $self->excessive_fees;   # excessive_fines is the same thing as excessive_fees for Koha
 }
+
+=head3 holds_blocked_by_excessive_fees
+
+    TODO
+
+=cut
 
 sub holds_blocked_by_excessive_fees {
     my $self = shift;
     return ( $self->fee_amount
           && $self->fee_amount > C4::Context->preference("maxoutstanding") );
 }
-    
+
+=head3 library_name
+
+    TODO
+
+=cut
+
 sub library_name {
     my $self = shift;
     unless ($self->{library_name}) {
@@ -419,25 +585,48 @@ sub library_name {
     }
     return $self->{library_name};
 }
-#
-# Messages
-#
+
+=head2 Messages
+
+=head3 invalid_patron
+
+    TODO
+
+=cut
 
 sub invalid_patron {
     my $self = shift;
     return "Please contact library staff";
 }
 
+=head3 charge_denied
+
+    TODO
+
+=cut
+
 sub charge_denied {
     my $self = shift;
     return "Please contact library staff";
 }
+
+=head3 update_lastseen
+
+    TODO: Nick...
+
+=cut
 
 sub update_lastseen {
     my $self = shift;
     my $kohaobj = Koha::Patrons->find( $self->{borrowernumber} );
     $kohaobj->track_login if $kohaobj; # track_login checks the pref
 }
+
+=head3 _get_address
+
+    TODO
+
+=cut
 
 sub _get_address {
     my $patron = shift;
@@ -456,6 +645,12 @@ sub _get_address {
     }
     return $address;
 }
+
+=head3 _get_outstanding_holds
+
+    TODO
+
+=cut
 
 sub _get_outstanding_holds {
     my $borrowernumber = shift;
@@ -481,7 +676,6 @@ sub _get_outstanding_holds {
 }
 
 1;
-__END__
 
 =head1 EXAMPLES
 
