@@ -1,9 +1,9 @@
 {
   "type": "object",
   "properties": {
-    "issue_id": {
+    "checkout_id": {
       "type": "string",
-      "description": "internally assigned checkout identifier"
+      "description": "Internally assigned checkout identifier"
     },
     "borrowernumber": {
       "$ref": "../x-primitives.json#/borrowernumber"
@@ -12,37 +12,52 @@
       "$ref": "../x-primitives.json#/itemnumber"
     },
     "date_due": {
+      "type": "string",
       "description": "Due date"
     },
     "branchcode": {
-      "$ref": "../x-primitives.json#/branchcode"
-    },
-    "issuingbranch": {
-      "description": "Code of the branch where issue was made"
+      "type": "string",
+      "description": "Code of the library the item was checked out"
     },
     "returndate": {
+      "type": ["string", "null"],
       "description": "Date the item was returned"
     },
     "lastreneweddate": {
+      "type": ["string", "null"],
       "description": "Date the item was last renewed"
     },
-    "return": {
-      "description": "?"
-    },
     "renewals": {
+      "type": ["integer", "null"],
       "description": "Number of renewals"
     },
     "auto_renew": {
+      "type": "boolean",
       "description": "Auto renewal"
     },
     "timestamp": {
+      "type": "string",
       "description": "Last update time"
     },
     "issuedate": {
-      "description": "Date the item was issued"
+      "type": ["string", "null"],
+      "description": "Date the item was checked out"
     },
     "onsite_checkout": {
-      "description": "On site checkout"
+      "type": "boolean",
+      "description": "If it is an on-site checkout"
+    },
+    "note": {
+      "type": ["string", "null"],
+      "description": "Checkout note"
+    },
+    "notedate": {
+      "type": ["string", "null"],
+      "description": "Datetime of the checkout note"
+    },
+    "checked_in": {
+        "type": "boolean",
+        "description": "If the checkout has been checked in"
     }
   }
 }
