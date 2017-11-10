@@ -194,3 +194,15 @@ i.help {
     padding-right: 19px;
     background: #EEEEEE none;
 }
+
+#sci_append_button {
+    margin-bottom: 10px;
+}
+/*
+#sci_input_append {
+    max-width: none;
+}
+*/
+#sci_checkin_button {
+    margin-bottom: 10px;
+}
