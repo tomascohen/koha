@@ -554,6 +554,7 @@
       }
     },
     "post": {
+      "x-mojo-to": "Patron#add",
       "operationId": "addPatron",
       "tags": ["patrons"],
       "parameters": [{
@@ -606,14 +607,14 @@
             "$ref": "../definitions.json#/error"
           }
         },
-        "503": {
-          "description": "Under maintenance",
+        "500": {
+          "description": "Internal server error",
           "schema": {
             "$ref": "../definitions.json#/error"
           }
         },
-        "500": {
-          "description": "Internal server error",
+        "503": {
+          "description": "Under maintenance",
           "schema": {
             "$ref": "../definitions.json#/error"
           }
@@ -684,7 +685,8 @@
       }
     },
     "put": {
-      "operationId": "editPatron",
+      "x-mojo-to": "Patron#update",
+      "operationId": "updatePatron",
       "tags": ["patrons"],
       "parameters": [
         {
@@ -755,14 +757,13 @@
         }
       },
       "x-koha-authorization": {
-        "allow-owner": true,
-        "allow-guarantor": true,
         "permissions": {
           "borrowers": "1"
         }
       }
     },
     "delete": {
+      "x-mojo-to": "Patron#delete",
       "operationId": "deletePatron",
       "tags": ["patrons"],
       "parameters": [{
