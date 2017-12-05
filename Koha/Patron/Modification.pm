@@ -85,7 +85,7 @@ sub store {
                     $changes_made = 1;
                     last;
                 }
-                # Set the changes for patron without commiting - this will be used
+                # Set the changes for patron without committing - this will be used
                 # for validating the given parameters via Koha::Patron.
                 # Do not ->store the patron!
                 $patron->$column($self->$column);
