@@ -39,7 +39,7 @@
                 "required": false,
                 "type": "integer"
             }, {
-                "$ref": "../parameters.json#/borrowernumberQueryParam"
+                "$ref": "../parameters.json#/patron_idQueryParam"
             }, {
                 "name": "completed",
                 "in": "query",

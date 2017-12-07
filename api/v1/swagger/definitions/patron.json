@@ -1,8 +1,8 @@
 {
   "type": "object",
   "properties": {
-    "borrowernumber": {
-      "$ref": "../x-primitives.json#/borrowernumber"
+    "patron_id": {
+      "$ref": "../x-primitives.json#/patron_id"
     },
     "cardnumber": {
       "$ref": "../x-primitives.json#/cardnumber"
@@ -177,7 +177,7 @@
     },
     "guarantorid": {
       "type": ["integer", "null"],
-      "description": "borrowernumber used for children or professionals to link them to guarantor or organizations"
+      "description": "patron_id used for children or professionals to link them to guarantor or organizations"
     },
     "borrowernotes": {
       "type": ["string", "null"],

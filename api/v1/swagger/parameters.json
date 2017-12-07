@@ -1,9 +1,9 @@
 {
-  "borrowernumberPathParam": {
-    "$ref": "parameters/patron.json#/borrowernumberPathParam"
+  "patron_idPathParam": {
+    "$ref": "parameters/patron.json#/patron_idPathParam"
   },
-  "borrowernumberQueryParam": {
-    "$ref": "parameters/patron.json#/borrowernumberQueryParam"
+  "patron_idQueryParam": {
+    "$ref": "parameters/patron.json#/patron_idQueryParam"
   },
   "cityidPathParam": {
     "$ref": "parameters/city.json#/cityidPathParam"
