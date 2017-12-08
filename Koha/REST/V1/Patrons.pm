@@ -44,7 +44,8 @@ sub list {
 
     return try {
         my $patrons_set = Koha::Patrons->new;
-        my @patrons = $c->objects->search( $patrons_set )->as_list;
+        my @patrons = $c->objects->search( $patrons_set, \&_to_model )->as_list;
+        @patrons = map { _to_api($_->TO_JSON) } @patrons;
         return $c->render( status => 200, openapi => \@patrons );
     }
     catch {
@@ -70,14 +71,14 @@ Controller function that handles retrieving a single Koha::Patron object
 sub get {
     my $c = shift->openapi->valid_input or return;
 
-    my $borrowernumber = $c->validation->param('borrowernumber');
-    my $patron = Koha::Patrons->find($borrowernumber);
+    my $patron_id = $c->validation->param('patron_id');
+    my $patron    = Koha::Patrons->find($patron_id);
 
     unless ($patron) {
-        return $c->render(status => 404, openapi => { error => "Patron not found." });
+        return $c->render( status => 404, openapi => { error => "Patron not found." } );
     }
 
-    return $c->render(status => 200, openapi => $patron);
+    return $c->render( status => 200, openapi => _to_api($patron->TO_JSON) );
 }
 
 =head3 add
@@ -94,8 +95,8 @@ sub add {
         my $body = _to_model($c->validation->param('body'));
 
         # TODO: Use AddMember until it has been moved to Koha-namespace
-        my $borrowernumber = AddMember(%$body);
-        my $patron         = Koha::Patrons->find($borrowernumber);
+        my $patron_id = AddMember( %{ _to_model($body) } );
+        my $patron    = _to_api(Koha::Patrons->find( $patron_id )->TO_JSON);
 
         return $c->render( status => 201, openapi => $patron );
     }
@@ -146,7 +147,7 @@ Controller function that handles updating a Koha::Patron object
 sub update {
     my $c = shift->openapi->valid_input or return;
 
-    my $patron_id = $c->validation->param('borrowernumber');
+    my $patron_id = $c->validation->param('patron_id');
     my $patron    = Koha::Patrons->find( $patron_id );
 
     unless ($patron) {
@@ -246,7 +247,7 @@ sub delete {
     my $patron;
 
     return try {
-        $patron = Koha::Patrons->find( $c->validation->param('borrowernumber') );
+        $patron = Koha::Patrons->find( $c->validation->param('patron_id') );
 
         # check if loans, reservations, debarrment, etc. before deletion!
         my $res = $patron->delete;
@@ -271,6 +272,31 @@ sub delete {
     };
 }
 
+=head3 _to_api
+
+Helper function that maps Koha::Patron objects into REST api
+attribute names.
+
+=cut
+
+sub _to_api {
+    my $patron = shift;
+
+    my $mapping = {
+        borrowernumber => 'patron_id',
+        branchcode     => 'library_id',
+        categorycode   => 'category_id'
+    };
+
+    foreach my $key ( keys %{ $mapping } ) {
+        if ( exists $patron->{ $key } ) {
+            $patron->{ $mapping->{$key} } = delete $patron->{ $key };
+        }
+    }
+
+    return $patron;
+}
+
 =head3 _to_model
 
 Helper function that maps REST api objects into Koha::Patron
@@ -279,12 +305,24 @@ attribute names.
 =cut
 
 sub _to_model {
-    my $params = shift;
+    my $patron = shift;
 
-    $params->{lost} = ($params->{lost}) ? 1 : 0;
-    $params->{gonenoaddress} = ($params->{gonenoaddress}) ? 1 : 0;
+    my $mapping = {
+        category_id => 'categorycode',
+        library_id  => 'branchcode',
+        patron_id   => 'borrowernumber'
+    };
 
-    return $params;
+    foreach my $key ( keys %{ $mapping } ) {
+        if ( exists $patron->{ $key } ) {
+            $patron->{ $mapping->{$key} } = delete $patron->{ $key };
+        }
+    }
+
+    $patron->{lost} = ($patron->{lost}) ? 1 : 0;
+    $patron->{gonenoaddress} = ($patron->{gonenoaddress}) ? 1 : 0;
+
+    return $patron;
 }
 
 1;

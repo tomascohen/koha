@@ -1,8 +1,8 @@
 {
   "type": "object",
   "properties": {
-    "borrowernumber": {
-      "$ref": "../x-primitives.json#/borrowernumber"
+    "patron_id": {
+      "$ref": "../x-primitives.json#/patron_id"
     },
     "cardnumber": {
       "$ref": "../x-primitives.json#/cardnumber"
@@ -124,13 +124,13 @@
       "format": "date",
       "description": "patron's date of birth"
     },
-    "branchcode": {
+    "library_id": {
       "type": "string",
-      "description": "code of patron's home branch"
+      "description": "Internal identifier for the patron's home library"
     },
-    "categorycode": {
+    "category_id": {
       "type": "string",
-      "description": "code of patron's category"
+      "description": "Internal identifier for the patron's category"
     },
     "dateenrolled": {
       "type": ["string", "null"],
@@ -299,5 +299,5 @@
     }
   },
   "additionalProperties": false,
-  "required": ["surname", "address", "city", "branchcode", "categorycode"]
+  "required": ["surname", "address", "city", "library_id", "category_id"]
 }

@@ -8,9 +8,9 @@
           "application/json"
       ],
       "parameters": [{
-        "name": "borrowernumber",
+        "name": "patron_id",
         "in": "query",
-        "description": "Case insensitive search on borrowernumber",
+        "description": "Search on patron_id",
         "required": false,
         "type": "string"
       }, {
@@ -200,15 +200,15 @@
         "required": false,
         "type": "string"
       }, {
-        "name": "branchcode",
+        "name": "library_id",
         "in": "query",
-        "description": "Case insensitive search on branchcode",
+        "description": "Case insensitive search on library_id",
         "required": false,
         "type": "string"
       }, {
-        "name": "categorycode",
+        "name": "category_id",
         "in": "query",
-        "description": "Case insensitive search on categorycode",
+        "description": "Case insensitive search on category_id",
         "required": false,
         "type": "string"
       }, {
@@ -563,13 +563,13 @@
       }
     }
   },
-  "/patrons/{borrowernumber}": {
+  "/patrons/{patron_id}": {
     "get": {
       "x-mojo-to": "Patrons#get",
       "operationId": "getPatron",
       "tags": ["patrons"],
       "parameters": [{
-        "$ref": "../parameters.json#/borrowernumberPathParam"
+          "$ref": "../parameters.json#/patron_id_pp"
       }],
       "produces": [
         "application/json"
@@ -626,7 +626,7 @@
       "tags": ["patrons"],
       "parameters": [
         {
-          "$ref": "../parameters.json#/borrowernumberPathParam"
+          "$ref": "../parameters.json#/patron_id_pp"
         },
         {
           "name": "body",
@@ -703,7 +703,7 @@
       "operationId": "deletePatron",
       "tags": ["patrons"],
       "parameters": [{
-        "$ref": "../parameters.json#/borrowernumberPathParam"
+        "$ref": "../parameters.json#/patron_id_pp"
       }],
       "produces": ["application/json"],
       "responses": {
