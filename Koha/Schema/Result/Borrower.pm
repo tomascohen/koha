@@ -1396,8 +1396,19 @@ __PACKAGE__->belongs_to(
 );
 
 __PACKAGE__->add_columns(
-    '+lost' => { is_boolean => 1 },
-    '+gonenoaddress' => { is_boolean => 1 }
+    '+borrowernumber' => { to_api => 'patron_id' },
+    '+emailpro'       => { to_api => 'secondary_email' },
+    '+gonenoaddress'  => { is_boolean => 1 },
+    '+lost'           => { is_boolean => 1 },
+    '+othernames'     => { to_api => 'other_name' },
+    '+phonepro'       => { to_api => 'secondary_phone' },
+    '+streetnumber'   => { to_api => 'street_number' },
+    '+streettype'     => { to_api => 'street_type' },
+    '+zipcode'        => { to_api => 'post_code' },
+    '+B_address'      => { to_api => 'altaddress_address' },
+    '+B_address2'     => { to_api => 'altaddress_address2' },
+    '+B_streetnumber' => { to_api => 'altaddress_street_number' },
+    '+B_streettype'   => { to_api => 'altaddress_street_type' },
 );
 
 sub koha_objects_class {

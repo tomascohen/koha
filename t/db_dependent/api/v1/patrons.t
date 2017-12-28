@@ -26,6 +26,7 @@ use t::lib::Mocks;
 
 use C4::Auth;
 use Koha::Database;
+use Koha::Patron::Debarments qw/AddDebarment/;
 
 my $schema  = Koha::Database->new->schema;
 my $builder = t::lib::TestBuilder->new;
@@ -45,7 +46,7 @@ subtest 'list() tests' => sub {
     $schema->storage->txn_rollback;
 
     subtest 'librarian access tests' => sub {
-        plan tests => 8;
+        plan tests => 13;
 
         $schema->storage->txn_begin;
 
@@ -74,6 +75,21 @@ subtest 'list() tests' => sub {
         $t->request_ok($tx)
           ->status_is(200)
           ->json_is('/0/address2' => $patron->address2);
+
+        my $patron_2 = $builder->build_object({ class => 'Koha::Patrons' });
+        AddDebarment({ borrowernumber => $patron_2->id });
+        # re-read from DB
+        $patron_2->discard_changes;
+        my $ub = $patron_2->unblessed;
+
+        $tx = $t->ua->build_tx( GET => '/api/v1/patrons?restricted=' . Mojo::JSON->true );
+        $tx->req->cookies({ name => 'CGISESSID', value => $session_id });
+        $tx->req->env({ REMOTE_ADDR => '127.0.0.1' });
+        $t->request_ok($tx)
+          ->status_is(200)
+          ->json_has('/0/restricted')
+          ->json_is( '/0/restricted' => Mojo::JSON->true )
+          ->json_hasnt('/1');
 
         $schema->storage->txn_rollback;
     };
@@ -129,10 +145,10 @@ subtest 'get() tests' => sub {
         $tx->req->cookies({ name => 'CGISESSID', value => $session_id });
         $t->request_ok($tx)
           ->status_is(200)
-          ->json_is('/patron_id'   => $patron->id)
-          ->json_is('/category_id' => $patron->categorycode )
-          ->json_is('/surname'     => $patron->surname)
-          ->json_is('/lost'        => Mojo::JSON->false );
+          ->json_is('/patron_id'        => $patron->id)
+          ->json_is('/category_id'      => $patron->categorycode )
+          ->json_is('/surname'          => $patron->surname)
+          ->json_is('/patron_card_lost' => Mojo::JSON->false );
 
         $schema->storage->txn_rollback;
     };
@@ -172,9 +188,9 @@ subtest 'add() tests' => sub {
         $tx->req->cookies({ name => 'CGISESSID', value => $session_id });
         warning_like {
             $t->request_ok($tx)
-              ->status_is(400)
-              ->json_is('/error' => "Given library_id does not exist"); }
-            qr/^DBD::mysql::st execute failed: Cannot add or update a child row: a foreign key constraint fails/;
+              ->status_is(409)
+              ->json_is('/error' => "Duplicate ID"); }
+            qr/^DBD::mysql::st execute failed: Duplicate entry/;
 
         $newpatron->{library_id} = $patron->branchcode;
 
