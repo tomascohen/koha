@@ -34,6 +34,7 @@
 [% IF ( bidi ) %]
     <link rel="stylesheet" type="text/css" href="[% interface %]/[% theme %]/css/right-to-left.css" />
 [% END %]
+<link href="[% interface %]/lib/emoji-picker/css/emoji.css" rel="stylesheet">
 [% IF ( OPACUserCSS ) %]<style type="text/css">[% OPACUserCSS %]</style>[% END %]
 [% IF SCO_login %]
     [% SET SCOUserCSS = Koha.Preference('SCOUserCSS') %]
