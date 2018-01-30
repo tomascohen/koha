@@ -952,6 +952,9 @@
 
             <h2>Leaflet</h2>
             <p>The <a href="http://leafletjs.com">Leaflet</a> JavaScript library by Vladimir Agafonkinis licensed under the <a href="https://github.com/Leaflet/Leaflet/blob/master/LICENSE">BSD License</a>.</p>
+
+            <h2>Emoji Picker</h2>
+            <p>The <a href="https://github.com/OneSignal/emoji-picker">Emoji Picker</a> JavaScript by OneSignal is licensed under the <a href="https://github.com/OneSignal/emoji-picker/blob/master/LICENSE">MIT License.</a></p>
         </div>
 
         <div id="translations">
