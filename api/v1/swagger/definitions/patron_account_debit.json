@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "debit_type": {
+      "type": "string",
+      "description": "Type of debit ('lost_item', 'fine', 'account_management_fee', 'new_card', 'sundry', values of MANUAL_INV )"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Debit amount"
+    },
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Date the debit was recorded"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Description"
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Note"
+    }
+  }
+}

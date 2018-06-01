@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "properties": {
+    "credit_type": {
+      "type": "string",
+      "description": "Type of credit ('payment', 'writeoff', values of PAYMENT_TYPE )"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Credit amount"
+    },
+    "account_lines_ids": {
+        "type": [
+            [ "number" ],
+            "null"
+        ],
+        "description": ""
+    },
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Date the credit was recorded"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Description"
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Note"
+    }
+  }
+}
