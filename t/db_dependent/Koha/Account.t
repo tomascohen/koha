@@ -85,7 +85,7 @@ subtest 'outstanding_debits() tests' => sub {
 
 subtest 'add_credit() tests' => sub {
 
-    plan tests => 13;
+    plan tests => 15;
 
     $schema->storage->txn_begin;
 
@@ -106,6 +106,7 @@ subtest 'add_credit() tests' => sub {
             description => 'Payment of 25',
             library_id  => $patron->branchcode,
             note        => 'not really important',
+            type        => 'payment',
             user_id     => $patron->id
         }
     );
@@ -142,6 +143,18 @@ subtest 'add_credit() tests' => sub {
     is( $offset_1->debit_id, undef, 'No debit_id is set for credits' );
     is( $offset_2->credit_id, $line_2->id, 'No debit_id is set for credits' );
     is( $offset_2->debit_id, undef, 'No debit_id is set for credits' );
+
+    my $line_3 = $account->add_credit(
+        {   amount      => 20,
+            description => 'Manual credit applied',
+            library_id  => $patron->branchcode,
+            user_id     => $patron->id,
+            type        => 'forgiven'
+        }
+    );
+
+    is( $schema->resultset('ActionLog')->count(), 2, 'Log was added' );
+    is( $schema->resultset('Statistic')->count(), 2, 'No action added to statistics, because of credit type' );
 
     $schema->storage->txn_rollback;
 };
