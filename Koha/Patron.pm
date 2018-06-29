@@ -294,15 +294,17 @@ sub store {
 
                 my $borrowers_log = C4::Context->preference("BorrowersLog");
                 my $previous_cardnumber = $self->get_from_storage->cardnumber;
-                if ( $borrowers_log && $previous_cardnumber ne $self->cardnumber )
+                if ($borrowers_log
+                    && ( !defined $previous_cardnumber
+                        || $previous_cardnumber ne $self->cardnumber )
+                    )
                 {
                     logaction(
                         "MEMBERS",
                         "MODIFY",
                         $self->borrowernumber,
                         to_json(
-                            {
-                                cardnumber_replaced => {
+                            {   cardnumber_replaced => {
                                     previous_cardnumber => $previous_cardnumber,
                                     new_cardnumber      => $self->cardnumber,
                                 }
