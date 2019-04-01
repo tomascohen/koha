@@ -11,8 +11,11 @@ use Koha::Patron::Password::Recovery
   qw(SendPasswordRecoveryEmail ValidateBorrowernumber GetValidLinkInfo CompletePasswordRecovery DeleteExpiredPasswordRecovery);
 use Koha::Patrons;
 use Koha::Patrons;
-my $query = new CGI;
 use HTML::Entities;
+use Try::Tiny;
+use List::Util qw/any/;
+
+my $query = new CGI;
 
 my ( $template, $dummy, $cookie ) = get_template_and_user(
     {
@@ -83,7 +86,7 @@ if ( $query->param('sendEmail') || $query->param('resendEmail') ) {
             $firstNonEmptyEmail = $emails[0] if @emails;
 
             # Is the given email one of the borrower's ?
-            if ( $email && !( grep /^$email$/i, @emails ) ) {
+            if ( $email && !( any { /^$email$/i } @emails ) ) {
                 $hasError    = 1;
                 $errNoBorrowerFound = 1;
             }
