@@ -40,11 +40,6 @@ __PACKAGE__->table("default_borrower_circ_rules");
   data_type: 'integer'
   is_nullable: 1
 
-=head2 max_holds
-
-  data_type: 'integer'
-  is_nullable: 1
-
 =cut
 
 __PACKAGE__->add_columns(
@@ -53,8 +48,6 @@ __PACKAGE__->add_columns(
   "maxissueqty",
   { data_type => "integer", is_nullable => 1 },
   "maxonsiteissueqty",
-  { data_type => "integer", is_nullable => 1 },
-  "max_holds",
   { data_type => "integer", is_nullable => 1 },
 );
 

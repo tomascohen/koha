@@ -123,6 +123,16 @@ __PACKAGE__->table("categories");
   is_nullable: 0
   size: 7
 
+=head2 reset_password
+
+  data_type: 'tinyint'
+  is_nullable: 1
+
+=head2 change_password
+
+  data_type: 'tinyint'
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -175,6 +185,10 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
     size => 7,
   },
+  "reset_password",
+  { data_type => "tinyint", is_nullable => 1 },
+  "change_password",
+  { data_type => "tinyint", is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -282,8 +296,8 @@ __PACKAGE__->might_have(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07042 @ 2018-10-05 14:29:17
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:yvHcgnSv1RXNMXJixVtt0Q
+# Created by DBIx::Class::Schema::Loader v0.07042 @ 2019-05-07 02:13:53
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ZO7jbDc48sJcRsH+T/FLUg
 
 
 # You can replace this text with custom content, and it will be preserved on regeneration
