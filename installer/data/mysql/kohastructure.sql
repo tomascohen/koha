@@ -4411,6 +4411,36 @@ CREATE TABLE return_claims (
     CONSTRAINT `rc_resolved_by_ibfk` FOREIGN KEY (`resolved_by`) REFERENCES `borrowers` (`borrowernumber`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Table structure for table `volumes`
+--
+
+DROP TABLE IF EXISTS `volumes`;
+CREATE TABLE `volumes` ( -- information related to bibliographic records in Koha
+  `id` int(11) NOT NULL auto_increment, -- primary key, unique identifier assigned by Koha
+  `biblionumber` INT(11) NOT NULL default 0, -- foreign key linking this table to the biblio table
+  `description` MEDIUMTEXT default NULL, -- equivilent to enumchron
+  `created_on` TIMESTAMP NOT NULL DEFAULT 0, -- Time and date the volume was created
+  `updated_on` TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Time and date of the latest change on the volume (description)
+  PRIMARY KEY  (`id`),
+  CONSTRAINT `volumes_ibfk_1` FOREIGN KEY (`biblionumber`) REFERENCES `biblio` (`biblionumber`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Table structure for table `volume_items`
+--
+
+DROP TABLE IF EXISTS `volume_items`;
+CREATE TABLE `volume_items` ( -- information related to bibliographic records in Koha
+  `id` int(11) NOT NULL auto_increment, -- primary key, unique identifier assigned by Koha
+  `volume_id` int(11) NOT NULL default 0, -- foreign key making this table a 1 to 1 join from items to volumes
+  `itemnumber` int(11) NOT NULL default 0, -- foreign key linking this table to the items table
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY (volume_id,itemnumber),
+  CONSTRAINT `volume_items_iifk_1` FOREIGN KEY (`itemnumber`) REFERENCES `items` (`itemnumber`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `volume_items_vifk_1` FOREIGN KEY (`volume_id`) REFERENCES `volumes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
