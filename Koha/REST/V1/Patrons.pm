@@ -374,6 +374,10 @@ sub _to_model {
         $patron->{updated_on} = output_pref({ str => $patron->{updated_on}, dateformat => 'sql' });
     }
 
+    if ( exists $patron->{autorenew_checkouts} ) {
+        $patron->{autorenew_checkouts} = ($patron->{autorenew_checkouts}) ? 1 : 0;
+    }
+
     return $patron;
 }
 
