@@ -1483,23 +1483,6 @@ sub AddIssue {
                 }
             }
 
-            _after_circ_actions(
-                {
-                    action  => 'checkout',
-                    payload => {
-                        type              => ( $onsite_checkout ? 'onsite_checkout' : 'issue' ),
-                        library_id        => C4::Context->userenv->{'branch'},
-                        charge            => $charge,
-                        item_id           => $item_object->itemnumber,
-                        item_type         => $item_object->effective_itemtype,
-                        shelving_location => $item_object->location // q{},
-                        patron_id         => $borrower->{'borrowernumber'},
-                        collection_code   => $item_object->ccode // q{},
-                        date_due          => $datedue
-                    }
-                }
-            ) if C4::Context->config("enable_plugins");
-
             # Record the fact that this book was issued.
             &UpdateStats(
                 {
@@ -1538,6 +1521,16 @@ sub AddIssue {
                 $borrower->{'borrowernumber'},
                 $item_object->itemnumber,
             ) if C4::Context->preference("IssueLog");
+
+            _after_circ_actions(
+                {
+                    action  => 'checkout',
+                    payload => {
+                        type     => ( $onsite_checkout ? 'onsite_checkout' : 'issue' ),
+                        checkout => $issue->get_from_storage
+                    }
+                }
+            ) if C4::Context->config("enable_plugins");
         }
     }
     return $issue;
@@ -2111,22 +2104,6 @@ sub AddReturn {
         $messages->{'ResFound'} = $resrec;
     }
 
-    _after_circ_actions(
-        {
-            action  => 'checkin',
-            payload => {
-                library_id        => C4::Context->userenv->{'branch'},
-                item_id           => $item->itemnumber,
-                item_type         => $item->effective_itemtype,
-                shelving_location => $item->location // q{},
-                patron_id         => $borrowernumber,
-                collection_code   => $item->ccode // q{},
-                date_returned     => $return_date,
-                date_due          => $issue ? $issue->date_due : q{}
-            }
-        }
-    ) if C4::Context->config("enable_plugins");
-
     # Record the fact that this book was returned.
     UpdateStats({
         branch         => $branch,
@@ -2200,6 +2177,17 @@ sub AddReturn {
 
     my $indexer = Koha::SearchEngine::Indexer->new({ index => $Koha::SearchEngine::BIBLIOS_INDEX });
     $indexer->index_records( $item->biblionumber, "specialUpdate", "biblioserver" );
+
+    my $checkin = Koha::Old::Checkouts->find($issue->id);
+
+    _after_circ_actions(
+        {
+            action  => 'checkin',
+            payload => {
+                checkout=> $checkin
+            }
+        }
+    ) if C4::Context->config("enable_plugins");
 
     return ( $doreturn, $messages, $issue, ( $patron ? $patron->unblessed : {} ));
 }
