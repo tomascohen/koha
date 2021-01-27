@@ -2178,7 +2178,8 @@ sub AddReturn {
     my $indexer = Koha::SearchEngine::Indexer->new({ index => $Koha::SearchEngine::BIBLIOS_INDEX });
     $indexer->index_records( $item->biblionumber, "specialUpdate", "biblioserver" );
 
-    my $checkin = Koha::Old::Checkouts->find($issue->id);
+    my $checkin = Koha::Old::Checkouts->find($issue->id)
+        if $issue;
 
     _after_circ_actions(
         {
